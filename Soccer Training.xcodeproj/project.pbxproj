@@ -6,16 +6,67 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		6FB8E47030635745009BB616 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6FB8E46F30635745009BB616 /* WidgetKit.framework */; };
+		6FB8E47230635745009BB616 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6FB8E47130635745009BB616 /* SwiftUI.framework */; };
+		6FB8E47F30635746009BB616 /* SoccerTrainingWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 6FB8E46D30635745009BB616 /* SoccerTrainingWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		6FB8E47D30635746009BB616 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 6F4AED1B30571E2500F7B542 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 6FB8E46C30635745009BB616;
+			remoteInfo = SoccerTrainingWidgetExtension;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		6FB8E48430635746009BB616 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				6FB8E47F30635746009BB616 /* SoccerTrainingWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		6F4AED2330571E2600F7B542 /* Soccer Training.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Soccer Training.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		6FB8E461306347BC009BB616 /* Soccer-Training-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "Soccer-Training-Info.plist"; sourceTree = "<group>"; };
+		6FB8E46D30635745009BB616 /* SoccerTrainingWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = SoccerTrainingWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		6FB8E46F30635745009BB616 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		6FB8E47130635745009BB616 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		6FC35AE930576B840074945C /* Soccer Training.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "Soccer Training.xcodeproj"; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		6FB8E48030635746009BB616 /* Exceptions for "SoccerTrainingWidget" folder in "SoccerTrainingWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 6FB8E46C30635745009BB616 /* SoccerTrainingWidgetExtension */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		6F4AED2530571E2600F7B542 /* Soccer Training */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = "Soccer Training";
+			sourceTree = "<group>";
+		};
+		6FB8E47330635745009BB616 /* SoccerTrainingWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				6FB8E48030635746009BB616 /* Exceptions for "SoccerTrainingWidget" folder in "SoccerTrainingWidgetExtension" target */,
+			);
+			path = SoccerTrainingWidget;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -28,6 +79,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		6FB8E46A30635745009BB616 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				6FB8E47230635745009BB616 /* SwiftUI.framework in Frameworks */,
+				6FB8E47030635745009BB616 /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -37,6 +97,8 @@
 				6FB8E461306347BC009BB616 /* Soccer-Training-Info.plist */,
 				6FC35AE930576B840074945C /* Soccer Training.xcodeproj */,
 				6F4AED2530571E2600F7B542 /* Soccer Training */,
+				6FB8E47330635745009BB616 /* SoccerTrainingWidget */,
+				6FB8E46E30635745009BB616 /* Frameworks */,
 				6F4AED2430571E2600F7B542 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -45,8 +107,18 @@
 			isa = PBXGroup;
 			children = (
 				6F4AED2330571E2600F7B542 /* Soccer Training.app */,
+				6FB8E46D30635745009BB616 /* SoccerTrainingWidgetExtension.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		6FB8E46E30635745009BB616 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				6FB8E46F30635745009BB616 /* WidgetKit.framework */,
+				6FB8E47130635745009BB616 /* SwiftUI.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 		6FC35AEA30576B840074945C /* Products */ = {
@@ -64,10 +136,12 @@
 				6F4AED1F30571E2500F7B542 /* Sources */,
 				6F4AED2030571E2500F7B542 /* Frameworks */,
 				6F4AED2130571E2500F7B542 /* Resources */,
+				6FB8E48430635746009BB616 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				6FB8E47E30635746009BB616 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				6F4AED2530571E2600F7B542 /* Soccer Training */,
@@ -79,6 +153,28 @@
 			productReference = 6F4AED2330571E2600F7B542 /* Soccer Training.app */;
 			productType = "com.apple.product-type.application";
 		};
+		6FB8E46C30635745009BB616 /* SoccerTrainingWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 6FB8E48130635746009BB616 /* Build configuration list for PBXNativeTarget "SoccerTrainingWidgetExtension" */;
+			buildPhases = (
+				6FB8E46930635745009BB616 /* Sources */,
+				6FB8E46A30635745009BB616 /* Frameworks */,
+				6FB8E46B30635745009BB616 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				6FB8E47330635745009BB616 /* SoccerTrainingWidget */,
+			);
+			name = SoccerTrainingWidgetExtension;
+			packageProductDependencies = (
+			);
+			productName = SoccerTrainingWidgetExtension;
+			productReference = 6FB8E46D30635745009BB616 /* SoccerTrainingWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -86,11 +182,14 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 2610;
+				LastSwiftUpdateCheck = 2700;
 				LastUpgradeCheck = 2700;
 				TargetAttributes = {
 					6F4AED2230571E2500F7B542 = {
 						CreatedOnToolsVersion = 26.1.1;
+					};
+					6FB8E46C30635745009BB616 = {
+						CreatedOnToolsVersion = 27.0;
 					};
 				};
 			};
@@ -115,12 +214,20 @@
 			projectRoot = "";
 			targets = (
 				6F4AED2230571E2500F7B542 /* Soccer Training */,
+				6FB8E46C30635745009BB616 /* SoccerTrainingWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		6F4AED2130571E2500F7B542 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6FB8E46B30635745009BB616 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -137,7 +244,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		6FB8E46930635745009BB616 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		6FB8E47E30635746009BB616 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 6FB8E46C30635745009BB616 /* SoccerTrainingWidgetExtension */;
+			targetProxy = 6FB8E47D30635746009BB616 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		6F4AED2C30571E2700F7B542 /* Debug */ = {
@@ -331,6 +453,66 @@
 			};
 			name = Release;
 		};
+		6FB8E48230635746009BB616 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = SoccerTrainingWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = SoccerTrainingWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.Soccer-Training.SoccerTrainingWidget";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		6FB8E48330635746009BB616 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = SoccerTrainingWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = SoccerTrainingWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.Soccer-Training.SoccerTrainingWidget";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -348,6 +530,15 @@
 			buildConfigurations = (
 				6F4AED2F30571E2700F7B542 /* Debug */,
 				6F4AED3030571E2700F7B542 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		6FB8E48130635746009BB616 /* Build configuration list for PBXNativeTarget "SoccerTrainingWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6FB8E48230635746009BB616 /* Debug */,
+				6FB8E48330635746009BB616 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
