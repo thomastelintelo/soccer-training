@@ -12,6 +12,6 @@ import SwiftUI
 struct SoccerTrainingWidgetBundle: WidgetBundle {
     var body: some Widget {
         SoccerTrainingWidget()
-        SoccerTrainingWidgetLiveActivity()
+        DrillTimerLiveActivityWidget()
     }
 }

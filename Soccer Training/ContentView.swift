@@ -4339,12 +4339,22 @@ struct DrillTimerView: View {
                         shootingStarted = true
                         shootingCooldown = drillDuration
                         timer?.invalidate()
+                        // Count down against an end date so the timer stays correct
+                        // while the phone is locked and the app is suspended.
+                        let endDate = Date().addingTimeInterval(TimeInterval(drillDuration))
+                        DrillTimerLiveActivity.shared.start(
+                            drillName: drill.name,
+                            category: drillCategory,
+                            duration: drillDuration
+                        )
                         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { timer in
-                            if shootingCooldown > 1 {
-                                shootingCooldown -= 1
+                            let remaining = Int(endDate.timeIntervalSinceNow.rounded(.up))
+                            if remaining > 0 {
+                                shootingCooldown = remaining
                             } else {
                                 shootingCooldown = 0
                                 timer.invalidate()
+                                DrillTimerLiveActivity.shared.finish()
                             }
                         }
                     }
@@ -4401,6 +4411,7 @@ struct DrillTimerView: View {
                     if timerActive {
                         timer?.invalidate()
                         timerActive = false
+                        DrillTimerLiveActivity.shared.cancel()
                     } else {
                         timerActive = true
                         goalsScored = ""
@@ -4410,13 +4421,23 @@ struct DrillTimerView: View {
                         isCompleted = false
                         didRecordProgress = false
                         timeLeft = drillDuration
+                        // Count down against an end date so the timer stays correct
+                        // while the phone is locked and the app is suspended.
+                        let endDate = Date().addingTimeInterval(TimeInterval(drillDuration))
+                        DrillTimerLiveActivity.shared.start(
+                            drillName: drill.name,
+                            category: drillCategory,
+                            duration: drillDuration
+                        )
                         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { timer in
-                            if timeLeft > 1 {
-                                timeLeft -= 1
+                            let remaining = Int(endDate.timeIntervalSinceNow.rounded(.up))
+                            if remaining > 0 {
+                                timeLeft = remaining
                             } else {
                                 timeLeft = 0
                                 timer.invalidate()
                                 timerActive = false
+                                DrillTimerLiveActivity.shared.finish()
                                 finishTimedDrill()
                             }
                         }
@@ -4477,6 +4498,10 @@ struct DrillTimerView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.soccerNavy.ignoresSafeArea())
         .onDisappear {
+            if timerActive || (shootingStarted && shootingCooldown > 0) {
+                timerActive = false
+                DrillTimerLiveActivity.shared.cancel()
+            }
             timer?.invalidate()
             passTurnStartTask?.cancel()
             speechSynthesizer.stopSpeaking(at: .immediate)

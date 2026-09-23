@@ -224,6 +224,10 @@ struct PlayerSignInView: View {
 
 @main
 struct Soccer_TrainingApp: App {
+    init() {
+        DrillTimerLiveActivity.shared.configure()
+    }
+
     var body: some Scene {
         WindowGroup {
             LaunchContainerView()
