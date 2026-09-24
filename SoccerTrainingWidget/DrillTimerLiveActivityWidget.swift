@@ -10,6 +10,23 @@ import SwiftUI
 import WidgetKit
 
 // Keep identical to "Soccer Training/DrillTimerAttributes.swift" in the app target.
+struct DrillTimerColorComponents: Codable, Hashable {
+    var red: Double
+    var green: Double
+    var blue: Double
+    var opacity: Double
+
+    var color: Color {
+        Color(red: red, green: green, blue: blue, opacity: opacity)
+    }
+}
+
+struct DrillTimerTheme: Codable, Hashable {
+    var accent: DrillTimerColorComponents
+    var background: DrillTimerColorComponents
+    var surface: DrillTimerColorComponents
+}
+
 struct DrillTimerAttributes: ActivityAttributes {
     struct ContentState: Codable, Hashable {
         var isFinished: Bool
@@ -19,14 +36,11 @@ struct DrillTimerAttributes: ActivityAttributes {
     var category: String
     var startDate: Date
     var endDate: Date
+    var theme: DrillTimerTheme
 }
 
 private enum DrillTimerPalette {
     static let cream = Color(red: 0.96, green: 0.99, blue: 0.97)
-    static let green = Color(red: 0.00, green: 0.55, blue: 0.30)
-    static let lime = Color(red: 0.65, green: 0.95, blue: 0.18)
-    static let navy = Color(red: 0.02, green: 0.10, blue: 0.07)
-    static let surface = Color(red: 0.06, green: 0.16, blue: 0.11)
 }
 
 private extension ActivityViewContext<DrillTimerAttributes> {
@@ -34,6 +48,10 @@ private extension ActivityViewContext<DrillTimerAttributes> {
     var isTimeUp: Bool {
         state.isFinished || isStale
     }
+
+    var accentColor: Color { attributes.theme.accent.color }
+    var backgroundColor: Color { attributes.theme.background.color }
+    var surfaceColor: Color { attributes.theme.surface.color }
 
     var timerRange: ClosedRange<Date> {
         attributes.startDate...max(attributes.startDate, attributes.endDate)
@@ -54,14 +72,14 @@ struct DrillTimerLiveActivityWidget: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: DrillTimerAttributes.self) { context in
             DrillTimerLockScreenView(context: context)
-                .activityBackgroundTint(DrillTimerPalette.navy)
+                .activityBackgroundTint(context.backgroundColor)
                 .activitySystemActionForegroundColor(DrillTimerPalette.cream)
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
                     Image(systemName: context.isTimeUp ? "checkmark.circle.fill" : context.symbolName)
                         .font(.title2)
-                        .foregroundStyle(DrillTimerPalette.lime)
+                        .foregroundStyle(context.accentColor)
                         .padding(.leading, 4)
                 }
 
@@ -74,7 +92,7 @@ struct DrillTimerLiveActivityWidget: Widget {
                 DynamicIslandExpandedRegion(.trailing) {
                     DrillTimerCountdownText(context: context)
                         .font(.system(.title2, design: .rounded).weight(.bold))
-                        .foregroundStyle(DrillTimerPalette.lime)
+                        .foregroundStyle(context.accentColor)
                         .padding(.trailing, 4)
                 }
 
@@ -89,22 +107,22 @@ struct DrillTimerLiveActivityWidget: Widget {
                         } currentValueLabel: {
                             EmptyView()
                         }
-                        .tint(DrillTimerPalette.lime)
+                        .tint(context.accentColor)
                         .padding(.horizontal, 4)
                     }
                 }
             } compactLeading: {
                 Image(systemName: context.isTimeUp ? "checkmark.circle.fill" : context.symbolName)
-                    .foregroundStyle(DrillTimerPalette.lime)
+                    .foregroundStyle(context.accentColor)
             } compactTrailing: {
                 DrillTimerCountdownText(context: context)
                     .font(.system(.body, design: .rounded).weight(.semibold))
-                    .foregroundStyle(DrillTimerPalette.lime)
+                    .foregroundStyle(context.accentColor)
                     .frame(width: 50, alignment: .trailing)
             } minimal: {
                 if context.isTimeUp {
                     Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(DrillTimerPalette.lime)
+                        .foregroundStyle(context.accentColor)
                 } else {
                     ProgressView(timerInterval: context.timerRange, countsDown: true) {
                         EmptyView()
@@ -113,10 +131,10 @@ struct DrillTimerLiveActivityWidget: Widget {
                             .font(.caption2)
                     }
                     .progressViewStyle(.circular)
-                    .tint(DrillTimerPalette.lime)
+                    .tint(context.accentColor)
                 }
             }
-            .keylineTint(DrillTimerPalette.lime)
+            .keylineTint(context.accentColor)
         }
     }
 }
@@ -143,9 +161,9 @@ private struct DrillTimerLockScreenView: View {
             HStack(spacing: 12) {
                 Image(systemName: context.isTimeUp ? "checkmark" : context.symbolName)
                     .font(.title3.weight(.semibold))
-                    .foregroundStyle(DrillTimerPalette.lime)
+                    .foregroundStyle(context.accentColor)
                     .frame(width: 44, height: 44)
-                    .background(DrillTimerPalette.surface, in: .circle)
+                    .background(context.surfaceColor, in: .circle)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(context.attributes.drillName)
@@ -161,7 +179,7 @@ private struct DrillTimerLockScreenView: View {
 
                 DrillTimerCountdownText(context: context)
                     .font(.system(size: 38, weight: .heavy, design: .rounded))
-                    .foregroundStyle(DrillTimerPalette.lime)
+                    .foregroundStyle(context.accentColor)
                     .frame(maxWidth: 110, alignment: .trailing)
             }
 
@@ -171,7 +189,7 @@ private struct DrillTimerLockScreenView: View {
                 } currentValueLabel: {
                     EmptyView()
                 }
-                .tint(DrillTimerPalette.lime)
+                .tint(context.accentColor)
             }
         }
         .foregroundStyle(DrillTimerPalette.cream)
@@ -185,7 +203,12 @@ extension DrillTimerAttributes {
             drillName: "Power Shots",
             category: "Shooting",
             startDate: .now,
-            endDate: .now.addingTimeInterval(600)
+            endDate: .now.addingTimeInterval(600),
+            theme: DrillTimerTheme(
+                accent: DrillTimerColorComponents(red: 0.65, green: 0.95, blue: 0.18, opacity: 1),
+                background: DrillTimerColorComponents(red: 0.02, green: 0.10, blue: 0.07, opacity: 1),
+                surface: DrillTimerColorComponents(red: 0.06, green: 0.16, blue: 0.11, opacity: 1)
+            )
         )
     }
 }

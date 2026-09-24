@@ -8,6 +8,8 @@
 
 import ActivityKit
 import Foundation
+import SwiftUI
+import UIKit
 import UserNotifications
 
 final class DrillTimerLiveActivity: NSObject {
@@ -37,7 +39,8 @@ final class DrillTimerLiveActivity: NSObject {
                     drillName: drillName,
                     category: category,
                     startDate: startDate,
-                    endDate: endDate
+                    endDate: endDate,
+                    theme: Self.currentTheme
                 )
             )
             await scheduleAlarm(drillName: drillName, at: endDate)
@@ -66,6 +69,16 @@ final class DrillTimerLiveActivity: NSObject {
                 dismissalPolicy: .after(.now.addingTimeInterval(60))
             )
         }
+    }
+
+    /// The app's current team colors, captured as plain RGBA values so the widget
+    /// extension can render the matching theme without reading `favoriteTeam` itself.
+    private static var currentTheme: DrillTimerTheme {
+        DrillTimerTheme(
+            accent: Color.soccerLime.drillTimerComponents,
+            background: Color.soccerNavy.drillTimerComponents,
+            surface: Color.soccerSurface.drillTimerComponents
+        )
     }
 
     private func requestActivity(attributes: DrillTimerAttributes) {
@@ -127,5 +140,18 @@ extension DrillTimerLiveActivity: UNUserNotificationCenterDelegate {
         willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
         [.banner, .list, .sound]
+    }
+}
+
+private extension Color {
+    var drillTimerComponents: DrillTimerColorComponents {
+        var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 0
+        UIColor(self).getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+        return DrillTimerColorComponents(
+            red: Double(red),
+            green: Double(green),
+            blue: Double(blue),
+            opacity: Double(alpha)
+        )
     }
 }

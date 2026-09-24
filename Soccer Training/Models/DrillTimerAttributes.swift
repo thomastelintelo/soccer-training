@@ -9,6 +9,26 @@
 
 import ActivityKit
 import Foundation
+import SwiftUI
+
+nonisolated struct DrillTimerColorComponents: Codable, Hashable {
+    var red: Double
+    var green: Double
+    var blue: Double
+    var opacity: Double
+
+    var color: Color {
+        Color(red: red, green: green, blue: blue, opacity: opacity)
+    }
+}
+
+/// Snapshot of the app's team-based theme, captured when the activity starts
+/// since the widget extension can't read the app's favorite-team setting itself.
+nonisolated struct DrillTimerTheme: Codable, Hashable {
+    var accent: DrillTimerColorComponents
+    var background: DrillTimerColorComponents
+    var surface: DrillTimerColorComponents
+}
 
 nonisolated struct DrillTimerAttributes: ActivityAttributes {
     struct ContentState: Codable, Hashable {
@@ -19,4 +39,5 @@ nonisolated struct DrillTimerAttributes: ActivityAttributes {
     var category: String
     var startDate: Date
     var endDate: Date
+    var theme: DrillTimerTheme
 }
