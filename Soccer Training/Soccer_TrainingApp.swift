@@ -13,10 +13,14 @@ struct LaunchContainerView: View {
 
     var body: some View {
         ZStack {
-            if hasCompletedOnboarding {
-                ContentView()
-            } else {
-                PlayerSignInView(isSignedIn: $hasCompletedOnboarding)
+            // Built only after the splash is dismissed, so the very first frame
+            // doesn't have to construct the whole signed-in tab hierarchy first.
+            if hasStarted {
+                if hasCompletedOnboarding {
+                    ContentView()
+                } else {
+                    PlayerSignInView(isSignedIn: $hasCompletedOnboarding)
+                }
             }
 
             if !hasStarted {
