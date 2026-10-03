@@ -8,6 +8,8 @@ struct LeaderboardsView: View {
     let totalPoints: Int
     @AppStorage("ownedPlayerIDs") private var ownedPlayerIDs = ""
     @AppStorage("playerShopDailyStockV2") private var stockText = ""
+    @AppStorage("playerUpgradeLevels") private var upgradeLevelsText = ""
+    @State private var hasAppeared = false
 
     private let requiredPositions = [
         "GK": 1, "LB": 1, "CB": 2, "RB": 1,
@@ -26,6 +28,7 @@ struct LeaderboardsView: View {
     }
 
     private var teamOverall: Int {
+        let upgradeLevels = PlayerUpgrade.levels(from: upgradeLevelsText)
         let selectedPlayers = requiredPositions.flatMap { position, count in
             Array(
                 ownedPlayers
@@ -35,7 +38,10 @@ struct LeaderboardsView: View {
             )
         }
         guard selectedPlayers.count == 11 else { return 0 }
-        return selectedPlayers.map(\.overall).reduce(0, +) / selectedPlayers.count
+        let totalOverall = selectedPlayers.reduce(0) { total, player in
+            total + PlayerUpgrade.effectiveOverall(for: player, levels: upgradeLevels)
+        }
+        return totalOverall / selectedPlayers.count
     }
 
     private var teamRankings: [LeaderboardEntry] {
@@ -106,23 +112,49 @@ struct LeaderboardsView: View {
                     } label: {
                         rankingRow(rank: index + 1, entry: entry, unit: "OVR")
                     }
+                    .opacity(hasAppeared ? 1 : 0)
+                    .offset(x: hasAppeared ? 0 : -16)
+                    .animation(.spring(response: 0.4, dampingFraction: 0.7).delay(Double(index) * 0.04), value: hasAppeared)
                 }
             }
 
             Section("Most Points Leaderboard") {
                 ForEach(Array(pointRankings.enumerated()), id: \.element.id) { index, entry in
                     rankingRow(rank: index + 1, entry: entry, unit: "points")
+                        .opacity(hasAppeared ? 1 : 0)
+                        .offset(x: hasAppeared ? 0 : -16)
+                        .animation(.spring(response: 0.4, dampingFraction: 0.7).delay(Double(index) * 0.04), value: hasAppeared)
                 }
             }
         }
         .navigationTitle("Leaderboards")
+        .onAppear {
+            hasAppeared = true
+        }
+    }
+
+    private func medalIcon(for rank: Int) -> (name: String, color: Color)? {
+        switch rank {
+        case 1: ("trophy.fill", Color.soccerGold)
+        case 2: ("medal.fill", Color(white: 0.75))
+        case 3: ("medal.fill", Color(red: 0.70, green: 0.45, blue: 0.2))
+        default: nil
+        }
     }
 
     private func rankingRow(rank: Int, entry: LeaderboardEntry, unit: String) -> some View {
         HStack {
-            Text("#\(rank)")
-                .font(.headline)
-                .frame(width: 42)
+            ZStack {
+                Text("#\(rank)")
+                    .font(.headline)
+                    .opacity(medalIcon(for: rank) == nil ? 1 : 0)
+                if let medal = medalIcon(for: rank) {
+                    Image(systemName: medal.name)
+                        .foregroundStyle(medal.color)
+                        .font(.headline)
+                }
+            }
+            .frame(width: 42)
             Text(entry.name)
                 .fontWeight(entry.id == "currentPlayer" || entry.id == "playerTeam" ? .bold : .regular)
             Spacer()

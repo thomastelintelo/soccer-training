@@ -13,10 +13,113 @@ private struct LineupSlot: Identifiable {
 struct MyTeamView: View {
     @AppStorage("ownedPlayerIDs") private var ownedPlayerIDs = ""
     @AppStorage("startingLineupSelections") private var lineupSelectionText = ""
+    @AppStorage("totalPoints") private var totalPoints = 0
+    @AppStorage("playerUpgradeLevels") private var upgradeLevelsText = ""
+    @AppStorage("favoriteTeam") private var favoriteTeam = ""
+    @State private var upgradeMessage = ""
+    @State private var showUpgradeMessage = false
+    @State private var upgradeSearchText = ""
+    @State private var playerForDetail: SoccerPlayer?
+    @State private var sellMessage = ""
+    @State private var showSellMessage = false
+    @State private var hasAppeared = false
+
+    private let positionOrder = ["GK", "LB", "CB", "RB", "LM", "CM", "RM", "ST"]
 
     private var ownedPlayers: [SoccerPlayer] {
         let ownedIDs = Set(ownedPlayerIDs.split(separator: "|").map(String.init))
         return PlayerCatalog.players.filter { ownedIDs.contains($0.id) }
+    }
+
+    private func sortedByPositionThenOverall(_ players: [SoccerPlayer]) -> [SoccerPlayer] {
+        players.sorted {
+            let firstPosition = positionOrder.firstIndex(of: $0.position) ?? positionOrder.count
+            let secondPosition = positionOrder.firstIndex(of: $1.position) ?? positionOrder.count
+            if firstPosition == secondPosition {
+                return $0.overall > $1.overall
+            }
+            return firstPosition < secondPosition
+        }
+    }
+
+    private var upgradeSearchQuery: String {
+        upgradeSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var upgradeSearchResults: [SoccerPlayer] {
+        guard !upgradeSearchQuery.isEmpty else { return [] }
+        return sortedByPositionThenOverall(
+            ownedPlayers.filter {
+                $0.name.localizedCaseInsensitiveContains(upgradeSearchQuery)
+                    || $0.position.localizedCaseInsensitiveContains(upgradeSearchQuery)
+            }
+        )
+    }
+
+    private var upgradeLevels: [String: Int] {
+        PlayerUpgrade.levels(from: upgradeLevelsText)
+    }
+
+    private func effectiveOverall(for player: SoccerPlayer) -> Int {
+        PlayerUpgrade.effectiveOverall(for: player, levels: upgradeLevels)
+    }
+
+    private var lineupPlayers: [SoccerPlayer] {
+        lineupSlots.compactMap { player(for: $0.position, occurrence: $0.occurrence) }
+    }
+
+    private var teamOverall: Int {
+        guard !lineupPlayers.isEmpty else { return 0 }
+        let total = lineupPlayers.reduce(0) { $0 + effectiveOverall(for: $1) }
+        return total / lineupPlayers.count
+    }
+
+    private func nextUpgradeCost(for player: SoccerPlayer, stat: String) -> Int? {
+        let nextLevel = PlayerUpgrade.level(for: player.id, stat: stat, in: upgradeLevels) + 1
+        guard nextLevel <= PlayerUpgrade.maxLevel else { return nil }
+        return PlayerUpgrade.cost(for: player, toReachLevel: nextLevel)
+    }
+
+    private func upgrade(_ player: SoccerPlayer, stat: String) {
+        guard let cost = nextUpgradeCost(for: player, stat: stat), totalPoints >= cost else { return }
+
+        totalPoints -= cost
+        var updatedLevels = upgradeLevels
+        updatedLevels["\(player.id):\(stat)", default: 0] += 1
+        upgradeLevelsText = PlayerUpgrade.encode(updatedLevels)
+
+        Haptics.success()
+        upgradeMessage = "\(player.name)'s \(stat) is up to \(effectiveOverall(for: player)) OVR!"
+        showUpgradeMessage = true
+    }
+
+    private func sellValue(for player: SoccerPlayer) -> Int {
+        let rawValue = Double(player.cost) * 0.15
+        return max(10, Int((rawValue / 10).rounded()) * 10)
+    }
+
+    private func sellPlayer(_ player: SoccerPlayer) {
+        let refund = sellValue(for: player)
+
+        var remainingOwnedIDs = Set(ownedPlayerIDs.split(separator: "|").map(String.init))
+        remainingOwnedIDs.remove(player.id)
+        ownedPlayerIDs = remainingOwnedIDs.sorted().joined(separator: "|")
+
+        let remainingLevels = upgradeLevels.filter { !$0.key.hasPrefix("\(player.id):") }
+        upgradeLevelsText = PlayerUpgrade.encode(remainingLevels)
+
+        let remainingSelections = lineupSelections.filter { $0.value != player.id }
+        lineupSelectionText = remainingSelections
+            .map { "\($0.key)=\($0.value)" }
+            .sorted()
+            .joined(separator: "|")
+
+        totalPoints += refund
+        playerForDetail = nil
+
+        Haptics.tap()
+        sellMessage = "Sold \(player.name) for \(refund) points."
+        showSellMessage = true
     }
 
     private let lineupSlots = [
@@ -53,6 +156,42 @@ struct MyTeamView: View {
                 Text("Your players are shown in their spots on the field.")
                     .foregroundStyle(.secondary)
 
+                HStack(spacing: 14) {
+                    if let team = FavoriteTeam(rawValue: favoriteTeam) {
+                        ClubCrestView(team: team, size: 44)
+                        Text(team.displayName)
+                            .font(.headline)
+                            .fontWeight(.bold)
+                            .lineLimit(1)
+                    } else {
+                        Image(systemName: "shield.lefthalf.filled")
+                            .font(.title2)
+                            .foregroundStyle(Color.soccerLime)
+                        Text("Your Club")
+                            .font(.headline)
+                            .fontWeight(.bold)
+                    }
+
+                    Spacer()
+
+                    VStack(alignment: .trailing, spacing: 0) {
+                        Text("\(teamOverall)")
+                            .font(.title2)
+                            .fontWeight(.heavy)
+                            .foregroundStyle(Color.soccerGold)
+                        Text("CLUB OVR")
+                            .font(.caption2)
+                            .fontWeight(.bold)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(14)
+                .background(Color.soccerSurface, in: RoundedRectangle(cornerRadius: 16))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(Color.soccerLime.opacity(0.5), lineWidth: 1)
+                }
+
                 ZStack {
                     RoundedRectangle(cornerRadius: 24)
                         .fill(
@@ -70,35 +209,35 @@ struct MyTeamView: View {
 
                     VStack {
                         HStack(spacing: 48) {
-                            TeamPlayerSpot(player: player(for: "ST", occurrence: 0), position: "ST", portraitNumber: 1)
-                            TeamPlayerSpot(player: player(for: "ST", occurrence: 1), position: "ST", portraitNumber: 2)
+                            teamPlayerSpot(for: "ST", occurrence: 0, portraitNumber: 1)
+                            teamPlayerSpot(for: "ST", occurrence: 1, portraitNumber: 2)
                         }
 
                         Spacer()
 
                         HStack {
-                            TeamPlayerSpot(player: player(for: "LM"), position: "LM", portraitNumber: 3)
+                            teamPlayerSpot(for: "LM", portraitNumber: 3)
                             Spacer()
-                            TeamPlayerSpot(player: player(for: "CM", occurrence: 0), position: "CM", portraitNumber: 4)
-                            TeamPlayerSpot(player: player(for: "CM", occurrence: 1), position: "CM", portraitNumber: 5)
+                            teamPlayerSpot(for: "CM", occurrence: 0, portraitNumber: 4)
+                            teamPlayerSpot(for: "CM", occurrence: 1, portraitNumber: 5)
                             Spacer()
-                            TeamPlayerSpot(player: player(for: "RM"), position: "RM", portraitNumber: 6)
+                            teamPlayerSpot(for: "RM", portraitNumber: 6)
                         }
 
                         Spacer()
 
                         HStack {
-                            TeamPlayerSpot(player: player(for: "LB"), position: "LB", portraitNumber: 7)
+                            teamPlayerSpot(for: "LB", portraitNumber: 7)
                             Spacer()
-                            TeamPlayerSpot(player: player(for: "CB", occurrence: 0), position: "CB", portraitNumber: 8)
-                            TeamPlayerSpot(player: player(for: "CB", occurrence: 1), position: "CB", portraitNumber: 9)
+                            teamPlayerSpot(for: "CB", occurrence: 0, portraitNumber: 8)
+                            teamPlayerSpot(for: "CB", occurrence: 1, portraitNumber: 9)
                             Spacer()
-                            TeamPlayerSpot(player: player(for: "RB"), position: "RB", portraitNumber: 10)
+                            teamPlayerSpot(for: "RB", portraitNumber: 10)
                         }
 
                         Spacer()
 
-                        TeamPlayerSpot(player: player(for: "GK"), position: "GK", portraitNumber: 11)
+                        teamPlayerSpot(for: "GK", portraitNumber: 11)
                     }
                     .padding(.horizontal, 10)
                     .padding(.vertical, 24)
@@ -127,12 +266,30 @@ struct MyTeamView: View {
 
                     ForEach(lineupSlots) { slot in
                         let candidates = players(for: slot.position)
+                        let currentPlayer = player(for: slot.position, occurrence: slot.occurrence)
 
                         if !candidates.isEmpty {
                             HStack {
-                                Text(slot.label)
-                                    .fontWeight(.semibold)
-                                Spacer()
+                                Button {
+                                    if let currentPlayer {
+                                        playerForDetail = currentPlayer
+                                    }
+                                } label: {
+                                    HStack {
+                                        Text(slot.label)
+                                            .fontWeight(.semibold)
+                                        Spacer()
+                                        if let currentPlayer {
+                                            Text("\(currentPlayer.name) • \(effectiveOverall(for: currentPlayer)) OVR")
+                                                .font(.subheadline)
+                                                .foregroundStyle(.secondary)
+                                                .lineLimit(1)
+                                        }
+                                    }
+                                    .contentShape(.rect)
+                                }
+                                .buttonStyle(.plain)
+
                                 Picker(
                                     slot.label,
                                     selection: lineupBinding(for: slot)
@@ -144,7 +301,54 @@ struct MyTeamView: View {
                                 }
                                 .labelsHidden()
                                 .pickerStyle(.menu)
+                                .fixedSize()
                             }
+                        }
+                    }
+                }
+                .padding()
+                .background(Color.soccerSurface)
+                .clipShape(.rect(cornerRadius: 18))
+
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Player Upgrades")
+                        .font(.title2)
+                        .fontWeight(.heavy)
+
+                    Text("Spend points to level up a player's individual stats — pace, shooting, passing, dribbling, defending, and physical — up to 3 levels each. Tap a player to upgrade.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+
+                    Label("\(totalPoints)", systemImage: "star.fill")
+                        .font(.headline)
+                        .foregroundStyle(Color.soccerLime)
+
+                    if upgradeSearchQuery.isEmpty {
+                        ForEach(positionOrder, id: \.self) { position in
+                            let playersAtPosition = sortedByPositionThenOverall(
+                                ownedPlayers.filter { $0.position == position }
+                            )
+
+                            if !playersAtPosition.isEmpty {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text(position)
+                                        .font(.subheadline)
+                                        .fontWeight(.heavy)
+                                        .foregroundStyle(Color.soccerLime)
+
+                                    ForEach(playersAtPosition) { player in
+                                        upgradeRow(for: player)
+                                    }
+                                }
+                            }
+                        }
+                    } else if upgradeSearchResults.isEmpty {
+                        Text("No players match \"\(upgradeSearchQuery)\"")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(upgradeSearchResults) { player in
+                            upgradeRow(for: player)
                         }
                     }
                 }
@@ -154,9 +358,84 @@ struct MyTeamView: View {
             }
             .padding()
         }
+        .searchable(text: $upgradeSearchText, prompt: "Search your players to upgrade")
         .background(Color.soccerNavy)
         .foregroundStyle(Color.soccerCream)
         .navigationTitle("My Team")
+        .onAppear {
+            withAnimation {
+                hasAppeared = true
+            }
+        }
+        .alert("Player Upgrade", isPresented: $showUpgradeMessage) {
+            Button("OK") { }
+        } message: {
+            Text(upgradeMessage)
+        }
+        .alert("Player Sold", isPresented: $showSellMessage) {
+            Button("OK") { }
+        } message: {
+            Text(sellMessage)
+        }
+        .sheet(item: $playerForDetail) { player in
+            PlayerDetailSheet(
+                player: player,
+                effectiveOverall: effectiveOverall(for: player),
+                upgradeLevels: upgradeLevels,
+                totalPoints: totalPoints,
+                sellValue: sellValue(for: player),
+                onUpgrade: { stat in upgrade(player, stat: stat) },
+                onSell: { sellPlayer(player) }
+            )
+        }
+    }
+
+    private func teamPlayerSpot(for position: String, occurrence: Int = 0, portraitNumber: Int) -> some View {
+        let matchedPlayer = player(for: position, occurrence: occurrence)
+        return TeamPlayerSpot(
+            player: matchedPlayer,
+            overall: matchedPlayer.map { effectiveOverall(for: $0) },
+            position: position,
+            portraitNumber: portraitNumber
+        )
+        .onTapGesture {
+            if let matchedPlayer {
+                playerForDetail = matchedPlayer
+            }
+        }
+        .opacity(hasAppeared ? 1 : 0)
+        .scaleEffect(hasAppeared ? 1 : 0.5)
+        .animation(
+            .spring(response: 0.45, dampingFraction: 0.65).delay(Double(portraitNumber) * 0.05),
+            value: hasAppeared
+        )
+    }
+
+    private func upgradeRow(for player: SoccerPlayer) -> some View {
+        let totalLevel = PlayerUpgrade.totalLevels(for: player.id, in: upgradeLevels)
+        let maxTotal = PlayerUpgrade.statLabels(for: player).count * PlayerUpgrade.maxLevel
+
+        return Button {
+            playerForDetail = player
+        } label: {
+            HStack {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(player.name)
+                        .fontWeight(.semibold)
+                    Text("\(player.position) • \(effectiveOverall(for: player)) OVR • \(totalLevel)/\(maxTotal) upgraded")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right.circle.fill")
+                    .foregroundStyle(Color.soccerLime)
+            }
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .padding(.vertical, 4)
     }
 
     private func players(for position: String) -> [SoccerPlayer] {
@@ -213,6 +492,7 @@ struct MyTeamView: View {
 
 private struct TeamPlayerSpot: View {
     let player: SoccerPlayer?
+    let overall: Int?
     let position: String
     let portraitNumber: Int
 
@@ -264,16 +544,135 @@ private struct TeamPlayerSpot: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
 
-            Text(player.map { "\($0.overall) OVR" } ?? "Empty spot")
+            Text(overall.map { "\($0) OVR" } ?? "Empty spot")
                 .font(.caption2)
                 .foregroundStyle(player == nil ? Color.soccerCream.opacity(0.65) : Color.soccerLime)
         }
         .frame(width: 72)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(
-            player.map { "\(position), \($0.name), overall \($0.overall)" }
+            player.map { "\(position), \($0.name), overall \(overall ?? $0.overall)" }
                 ?? "\(position), open position"
         )
+    }
+}
+
+private struct PlayerDetailSheet: View {
+    let player: SoccerPlayer
+    let effectiveOverall: Int
+    let upgradeLevels: [String: Int]
+    let totalPoints: Int
+    let sellValue: Int
+    let onUpgrade: (String) -> Void
+    let onSell: () -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var isShowingSellConfirmation = false
+
+    private var statLabels: [String] { PlayerUpgrade.statLabels(for: player) }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 20) {
+                    PlayerCardView(
+                        player: player,
+                        effectiveOverall: effectiveOverall,
+                        upgradeLevels: upgradeLevels
+                    )
+                    .padding(.top, 8)
+
+                    VStack(spacing: 10) {
+                        LabeledContent("Bought for", value: "\(player.cost) points")
+                        LabeledContent("Sell value (15%)", value: "\(sellValue) points")
+                    }
+                    .padding()
+                    .background(Color.soccerSurface)
+                    .clipShape(.rect(cornerRadius: 14))
+
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Upgrade Stats")
+                            .font(.headline)
+                            .fontWeight(.heavy)
+
+                        ForEach(statLabels, id: \.self) { stat in
+                            statUpgradeRow(for: stat)
+                        }
+                    }
+                    .padding()
+                    .background(Color.soccerSurface)
+                    .clipShape(.rect(cornerRadius: 14))
+
+                    Button(role: .destructive) {
+                        isShowingSellConfirmation = true
+                    } label: {
+                        Text("Sell Player for \(sellValue) Points")
+                            .font(.headline)
+                            .fontWeight(.heavy)
+                            .frame(maxWidth: .infinity)
+                            .frame(minHeight: 54)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.red)
+                }
+                .padding()
+            }
+            .background(Color.soccerNavy)
+            .foregroundStyle(Color.soccerCream)
+            .navigationTitle(player.name)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Close") { dismiss() }
+                }
+            }
+            .confirmationDialog(
+                "Sell \(player.name) for \(sellValue) points?",
+                isPresented: $isShowingSellConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Sell Player", role: .destructive) {
+                    onSell()
+                }
+                Button("Cancel", role: .cancel) { }
+            }
+        }
+    }
+
+    private func statUpgradeRow(for stat: String) -> some View {
+        let level = PlayerUpgrade.level(for: player.id, stat: stat, in: upgradeLevels)
+        let nextLevel = level + 1
+        let cost = nextLevel <= PlayerUpgrade.maxLevel
+            ? PlayerUpgrade.cost(for: player, toReachLevel: nextLevel)
+            : nil
+
+        return HStack {
+            Text(stat)
+                .font(.subheadline)
+                .fontWeight(.bold)
+                .frame(width: 44, alignment: .leading)
+            Text("Lv \(level)/\(PlayerUpgrade.maxLevel)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            Spacer()
+
+            if let cost {
+                Button("+1 for \(cost)") {
+                    onUpgrade(stat)
+                }
+                .font(.caption)
+                .fontWeight(.bold)
+                .buttonStyle(.borderedProminent)
+                .tint(Color.soccerGreen)
+                .disabled(totalPoints < cost)
+            } else {
+                Text("MAX")
+                    .font(.caption)
+                    .fontWeight(.bold)
+                    .foregroundStyle(Color.soccerGold)
+            }
+        }
     }
 }
 

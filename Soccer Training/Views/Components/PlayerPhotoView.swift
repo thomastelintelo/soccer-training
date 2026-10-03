@@ -7,8 +7,28 @@ import SwiftUI
 
 struct PlayerPhotoView: View {
     let player: SoccerPlayer?
-    let size: CGFloat
+    let width: CGFloat
+    let height: CGFloat
+    let isCircular: Bool
     @State private var photoURL: URL?
+
+    /// The usual circular portrait, used everywhere except the player card.
+    init(player: SoccerPlayer?, size: CGFloat) {
+        self.player = player
+        self.width = size
+        self.height = size
+        self.isCircular = true
+    }
+
+    /// A rectangular render at an arbitrary aspect ratio, for the player
+    /// card's wide bleeding photo (which fades into the card instead of
+    /// sitting in a circle).
+    init(player: SoccerPlayer?, cardWidth: CGFloat, cardHeight: CGFloat) {
+        self.player = player
+        self.width = cardWidth
+        self.height = cardHeight
+        self.isCircular = false
+    }
 
     var body: some View {
         Group {
@@ -24,8 +44,8 @@ struct PlayerPhotoView: View {
                 placeholder
             }
         }
-        .frame(width: size, height: size)
-        .clipShape(.circle)
+        .frame(width: width, height: height)
+        .clipShape(isCircular ? AnyShape(Circle()) : AnyShape(Rectangle()))
         .task(id: player?.id) {
             photoURL = await loadPhotoURL()
         }
@@ -36,7 +56,7 @@ struct PlayerPhotoView: View {
             .resizable()
             .scaledToFit()
             .foregroundStyle(Color.soccerCream.opacity(0.7))
-            .padding(4)
+            .padding(isCircular ? 4 : width * 0.22)
     }
 
     private func loadPhotoURL() async -> URL? {

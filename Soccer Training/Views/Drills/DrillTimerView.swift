@@ -19,11 +19,8 @@ struct DrillTimerView: View {
     @AppStorage("completedWeeklyDays") private var completedWeeklyDays = ""
     @AppStorage("totalTrainingMinutes") private var totalTrainingMinutes = 0
     @AppStorage("playerXP") private var playerXP = 0
-    @AppStorage("shootingXP") private var shootingXP = 0
-    @AppStorage("dribblingXP") private var dribblingXP = 0
-    @AppStorage("passingXP") private var passingXP = 0
-    @AppStorage("controlXP") private var controlXP = 0
-    @AppStorage("fitnessXP") private var fitnessXP = 0
+    @AppStorage("categoryXP") private var categoryXPText = ""
+    @AppStorage("categoryMinutes") private var categoryMinutesText = ""
     @AppStorage("totalGoals") private var totalGoals = 0
     @AppStorage("totalShots") private var totalShots = 0
     @AppStorage("totalPasses") private var totalPasses = 0
@@ -52,7 +49,7 @@ struct DrillTimerView: View {
     @State private var calloutsActive = false
     @State private var readyCountdown = 0
     @State private var passTurnStartTask: Task<Void, Never>?
-    @State private var trainingDifficulty = PassTurnDifficulty.easy
+    @State private var trainingDifficulty = DrillDifficulty.easy
     @State private var speechSynthesizer = AVSpeechSynthesizer()
     @State private var showScoreQuestion = false
     @State private var showThankYou = false
@@ -76,6 +73,14 @@ struct DrillTimerView: View {
 
     static func duration(for drillName: String) -> Int {
         switch drillName {
+        case "Triangle Possession Circuit", "Shoot-Dribble-Pass Combo", "1v1 to Finish Transition",
+             "Four Corner Passing Circuit", "Receive Turn Finish Combo", "Defensive Press to Counter",
+             "Full Pitch Transition Circuit", "Long Switch and Finish",
+             "Overload Finishing Circuit", "Press Trigger Circuit", "Box to Box Circuit",
+             "Quick Combination Finish", "Game Speed Possession",
+             "Attacking Third Combination", "High Press Counter Circuit", "Finish Under Fatigue",
+             "Possession Under Pressure Circuit", "Full Speed Skill Combo":
+            480
         case "Full Body Workout", "Running":
             360
         case "Ball Mastery", "Indoor Wall Passing":
@@ -118,16 +123,24 @@ struct DrillTimerView: View {
     }
 
     static func minimumPoints(for drillName: String) -> Int {
-        let minutes = duration(for: drillName) / 60
+        let minutes = Int((Double(duration(for: drillName)) / 60).rounded(.up))
         let isWorkout = DrillPresentation.category(for: drillName) == "Workout"
         return minutes * (isWorkout ? 30 : 35) + (isWorkout ? 150 : 0)
     }
 
+    /// Applies the Plus 25% point bonus and rounds to the nearest 5, so members
+    /// see a clean number like "45" instead of a jagged one like "47".
+    static func proAdjustedPoints(base: Int, isProMember: Bool) -> Int {
+        guard isProMember else { return base }
+        return Int((Double(base) * 1.25 / 5).rounded()) * 5
+    }
+
     private var drillDuration: Int {
-        let baseMinutes = Double(Self.duration(for: drill.name)) / 60
+        let baseSeconds = Double(Self.duration(for: drill.name))
+
         let adjustedMinutes = max(
             2,
-            Int((baseMinutes * trainingDifficulty.durationMultiplier).rounded())
+            Int((baseSeconds / 60 * trainingDifficulty.durationMultiplier).rounded())
         )
         return adjustedMinutes * 60
     }
@@ -175,14 +188,20 @@ struct DrillTimerView: View {
         return min(1, Double(recordedSuccesses) / Double(recordedAttempts))
     }
 
+    /// Drill minutes rounded up so a drill a few seconds under a full minute
+    /// still earns a full minute's worth of points and XP.
+    private var drillMinutes: Int {
+        Int((Double(drillDuration) / 60).rounded(.up))
+    }
+
     private var basePointsAward: Int {
-        let timePoints = (drillDuration / 60) * (isWorkoutDrill ? 30 : 35)
+        let timePoints = drillMinutes * (isWorkoutDrill ? 30 : 35)
         let workoutBonus = isWorkoutDrill ? 150 : 0
         let standardPoints = timePoints
             + workoutBonus
             + trainingDifficulty.reward
             + (weeklyTaskID == nil ? 0 : 25)
-        return isProMember ? standardPoints * 5 / 4 : standardPoints
+        return Self.proAdjustedPoints(base: standardPoints, isProMember: isProMember)
     }
 
     private var pointsAward: Int {
@@ -190,7 +209,7 @@ struct DrillTimerView: View {
     }
 
     private var xpAward: Int {
-        (drillDuration / 60) * 10 + recordedSuccesses * 2
+        drillMinutes * 10 + recordedSuccesses * 2
     }
 
     private var weeklyTaskAlreadyCompleted: Bool {
@@ -345,6 +364,294 @@ struct DrillTimerView: View {
             return "\(opening) Practice pullback, inside, outside, and Cruyff turns. Take two or three close touches between turns and keep your head up."
         case "Indoor Wall Passing":
             return "\(opening) Use a soft ball and a safe wall. Pass gently, control the return, alternate feet, and count your accurate passes."
+        case "Indoor Figure Eight":
+            return "\(opening) Dribble a tight figure-eight around two markers in a small safe space. Keep the ball close and alternate the lead foot."
+        case "Instep Drive Finish":
+            return "\(opening) Strike through the center of the ball with your laces for a flat, driven finish. Plant your standing foot beside the ball and follow through toward the target."
+        case "Half Volley Finish":
+            return "\(opening) Meet the ball just after it bounces, keep your knee over the ball, and strike down through the center for a clean half-volley."
+        case "Roulette Spin":
+            return "\(opening) Drag the ball back with the sole of one foot while spinning your body around it, then accelerate away with the other foot."
+        case "Ronaldo Chop":
+            return "\(opening) Plant your standing foot, chop the ball sharply across your body with the inside of your foot, and explode away in the new direction."
+        case "Juggle to Control":
+            return "\(opening) Juggle a few touches, then kill the ball dead with a soft first touch and reset. Repeat, mixing foot, thigh, and chest juggles."
+        case "Knee Control Drill":
+            return "\(opening) Toss the ball onto your knee, cushion it on contact, and let it drop to your feet under control. Alternate knees evenly."
+        case "Lofted Chip Pass":
+            return "\(opening) Strike underneath the ball with a stabbing motion to loft it over a short obstacle to your target. Focus on a soft, accurate landing."
+        case "Rapid Rebound Passing":
+            return "\(opening) Pass firmly against a wall and play the return as quickly and cleanly as possible without a heavy first touch. Keep a brisk, steady rhythm."
+        case "Parry and Recover":
+            return "\(opening) Parry hard shots away from danger with a firm wrist, land balanced, and recover to your feet quickly for a follow-up save."
+        case "Narrow Angle Saves":
+            return "\(opening) Close the angle by stepping off your line, stay big and balanced, and smother the shot rather than diving early."
+        case "Standing Tackle Timing":
+            return "\(opening) Stay patient, show the attacker onto your weaker side, and time the tackle for when the ball is slightly away from their feet."
+        case "Press and Contain":
+            return "\(opening) Sprint to close the gap quickly, then slow down under control a few steps out to contain rather than dive into a tackle."
+        case "Triangle Possession Circuit":
+            return "\(opening) Set three cones in a triangle 6 steps apart. Pass to one corner, follow your pass, receive at the next corner with an open first touch, and rotate continuously. Switch direction every 2 minutes."
+        case "Shoot-Dribble-Pass Combo":
+            return "\(opening) Dribble through a line of cones, pass against a wall, control the return, then finish on goal. Reset and repeat the full sequence every time, alternating your finishing foot."
+        case "1v1 to Finish Transition":
+            return "\(opening) Dribble at a cone acting as a defender, beat it with a change of pace or a turn, then drive forward and finish on goal within 3 touches. Reset fully between reps."
+        case "Four Corner Passing Circuit":
+            return "\(opening) Set up four cones in a square. Pass to the next corner and sprint to take its place, continuing around the square. Switch passing foot and direction every 2 minutes."
+        case "Receive Turn Finish Combo":
+            return "\(opening) Receive a pass with your back to goal, take a half-turn first touch into space, and finish in one or two touches. Vary which shoulder you turn over each rep."
+        case "Defensive Press to Counter":
+            return "\(opening) Close down a cone as the attacker, win the imaginary ball, then immediately dribble forward and finish on goal within 5 seconds. Reset and repeat, alternating your recovery angle."
+        case "Full Pitch Transition Circuit":
+            return "\(opening) Sprint the length of the area in possession, finish on goal, then sprint back defending an imaginary attacker. Repeat at match intensity."
+        case "Long Switch and Finish":
+            return "\(opening) Strike a long switching pass to a target, sprint to meet the return pass, and finish first time on goal."
+        case "Driven Low Finish":
+            return "\(opening) Strike firmly through the bottom half of the ball with your laces to keep the shot low and driven along the ground."
+        case "Curl Shot Finish":
+            return "\(opening) Strike across the ball with the inside of your foot to bend it around an imaginary defender and into the corner."
+        case "First Time Finish":
+            return "\(opening) Meet a rolled pass with a first-time strike without taking a touch. Stay balanced and connect cleanly through the ball."
+        case "Angled Run Finish":
+            return "\(opening) Start your run from a wide angle, time your approach to the ball, and finish across your body into the far corner."
+        case "Finesse Corner Finish":
+            return "\(opening) Use the inside of your foot to lift a soft, placed finish just inside the post rather than driving through it."
+        case "Elastico Flick":
+            return "\(opening) Touch the ball outside with the outside of your foot, then instantly flick it back inside with the same foot to beat an imaginary defender."
+        case "Hocus Pocus Spin":
+            return "\(opening) Drag the ball back with your sole, roll it across your body, then spin away using the outside of your other foot."
+        case "Lane Change Dribble":
+            return "\(opening) Dribble in a straight line, then cut sharply into a new lane every few touches, keeping the ball close as you change direction."
+        case "Push and Explode":
+            return "\(opening) Push the ball firmly into space ahead of you, then accelerate onto it at full speed before bringing it back under control."
+        case "Berba Spin Turn":
+            return "\(opening) Shield the ball with your body, drag it back with the sole of your foot, and spin away smoothly in one controlled motion."
+        case "Spin Away Control":
+            return "\(opening) Cushion the first touch away from pressure, spin your body around the ball, and drive forward in the new direction."
+        case "Instep Cushion":
+            return "\(opening) Use the top of your foot to cushion a dropping ball dead, keeping it within one step of your body."
+        case "One Touch Settle":
+            return "\(opening) Kill a firm pass dead on first contact. Keep your ankle relaxed and let the ball die close to your feet."
+        case "Back Foot Control":
+            return "\(opening) Receive with your back foot to open your body toward the field, setting up your next touch in one movement."
+        case "Reaction Control Gates":
+            return "\(opening) Have a partner pass to random gates. React quickly, control through the correct gate, and reset for the next ball."
+        case "Switch Play Pass":
+            return "\(opening) Strike a long diagonal pass across the field to switch play, focusing on weight and accuracy over power."
+        case "Through Ball Timing":
+            return "\(opening) Play a firm pass into the space ahead of a moving target, timing the pass so it arrives just as they reach it."
+        case "Backheel Pass":
+            return "\(opening) Let the ball roll to your heel and pass it backward without turning your body. Keep the touch firm and accurate."
+        case "Disguised Pass":
+            return "\(opening) Look one way and pass the other. Keep your body shape neutral until the last moment to disguise your intention."
+        case "Quick Combination Pass":
+            return "\(opening) Play rapid one-twos with a wall or partner, keeping every touch quick and accurate under growing tempo."
+        case "Rebound Control Saves":
+            return "\(opening) Parry the first shot away from danger, then react immediately to smother or catch the rebound."
+        case "Low Drive Parry":
+            return "\(opening) Get low early and parry firm, driven shots away to the side rather than trying to catch them."
+        case "Command the Box":
+            return "\(opening) Call loudly, attack crosses at the highest point you can safely reach, and claim the ball with confidence."
+        case "One-on-One Recovery":
+            return "\(opening) Make the first save, then scramble back to your feet instantly to cover a follow-up shot."
+        case "Show Inside Press":
+            return "\(opening) Press the attacker from an angle that forces them onto their weaker foot and inside, away from space."
+        case "Double Team Recovery":
+            return "\(opening) Delay the attacker alone until a second defender arrives, then recover to cover the space they leave."
+        case "Last Man Cover":
+            return "\(opening) Stay goal-side of the attacker at all times, matching their pace while showing them away from goal."
+        case "Zonal Shuffle":
+            return "\(opening) Shuffle between marked zones, staying compact and resetting your stance each time the ball changes side."
+        case "Overload Finishing Circuit":
+            return "\(opening) Combine a dribble, a one-two off a wall, and a first-time finish in one continuous sequence. Reset fully between reps."
+        case "Press Trigger Circuit":
+            return "\(opening) Sprint to press a cone the instant an imaginary pass is played to it, then recover into shape before the next trigger."
+        case "Box to Box Circuit":
+            return "\(opening) Sprint from your own box to the opposite box, finish on goal, then jog back to recover. Repeat at a steady, match-realistic pace."
+        case "Quick Combination Finish":
+            return "\(opening) Play a one-two with a wall, take one touch to set, and finish quickly before you lose momentum."
+        case "Game Speed Possession":
+            return "\(opening) Keep the ball moving with one- and two-touch passes against a wall at match tempo, resetting instantly after any mistake."
+        case "Laces Drive Finish":
+            return "\(opening) Strike through the ball's center with the laces of your boot for maximum power while keeping your shot on target."
+        case "Inside Foot Placement":
+            return "\(opening) Use the inside of your foot for accuracy over power, placing the ball just inside the post rather than blasting it."
+        case "Outside Foot Finish":
+            return "\(opening) Strike with the outside of your foot to curl the ball away from the keeper without opening your hips."
+        case "Rising Drive Finish":
+            return "\(opening) Strike slightly under the ball's center to lift a powerful, rising shot toward the top corner."
+        case "Across the Body Finish":
+            return "\(opening) Approach at an angle and strike across your body into the far corner, keeping your standing foot planted firmly."
+        case "Set Piece Free Kick":
+            return "\(opening) Set the ball, take a measured run-up, and strike over or around an imaginary wall into the target corner."
+        case "Penalty Spot Finish":
+            return "\(opening) Pick your corner before you approach the ball, stay composed, and strike confidently from the penalty spot."
+        case "Matthews Fake":
+            return "\(opening) Shift your weight and touch the ball as if going one way, then push it the opposite direction with the outside of your foot and accelerate."
+        case "Rainbow Flick":
+            return "\(opening) Trap the ball between your feet, flick it up and over your head with your back foot, and control it as it comes down."
+        case "Nutmeg Attempt":
+            return "\(opening) Approach a cone gap straight on and push the ball cleanly through it, sprinting around to collect it on the other side."
+        case "Chop and Burst":
+            return "\(opening) Plant your standing foot, chop the ball sharply inside with the inside of your foot, and burst away at full speed."
+        case "Inside Hook Turn":
+            return "\(opening) Hook the ball behind your standing leg with the inside of your foot, turning your whole body before accelerating away."
+        case "Sprint and Shield":
+            return "\(opening) Sprint with the ball under control, then shield it from an imaginary challenger by turning your body side-on before continuing."
+        case "Rivelino Flick":
+            return "\(opening) Roll the sole of your foot over the top of the ball to disguise direction, then push it past a cone with the same foot."
+        case "Volley Cushion":
+            return "\(opening) Cushion a ball out of the air with a soft, relaxed foot so it drops dead at your feet instead of bouncing away."
+        case "Spin and Pass Control":
+            return "\(opening) Control the ball while spinning away from pressure, then immediately play an accurate pass without an extra touch."
+        case "Receive Under Pressure":
+            return "\(opening) Have a partner close you down as the ball arrives. Shield it with your body and take a touch into open space."
+        case "Wall Rebound Control":
+            return "\(opening) Pass firmly against a wall at an angle and control the rebound with your first touch, keeping it close enough to move immediately."
+        case "Low Driven Cushion":
+            return "\(opening) Cushion a firm, low pass dead with the inside of your foot, absorbing the pace so the ball doesn't bounce away."
+        case "Open Body Control":
+            return "\(opening) Receive side-on with an open body shape so your first touch sets you facing forward, ready to play or dribble."
+        case "Two Touch Mastery":
+            return "\(opening) Use exactly two touches every time: one to control into space, one to pass or shoot. Keep both touches crisp and purposeful."
+        case "Driven Diagonal Pass":
+            return "\(opening) Strike a firm diagonal pass across the field with your laces, focusing on accuracy to a specific target."
+        case "Blind Side Pass":
+            return "\(opening) Without looking directly at the target, use your peripheral vision to play an accurate pass to a cone beside you."
+        case "Overlap Pass and Run":
+            return "\(opening) Pass the ball forward, then sprint past it on the overlap to receive a return pass in stride."
+        case "Angled Wall Pass":
+            return "\(opening) Pass against a wall from an angle so the rebound comes back at a different angle. Control and repeat from varying positions."
+        case "Third Man Pass":
+            return "\(opening) Play a pass to one target with the intention of a quick lay-off to a third target, practicing quick combination thinking."
+        case "Short Side Pass":
+            return "\(opening) Play crisp, short passes to a close target, prioritizing a quick release over power."
+        case "Weighted Pass Gates":
+            return "\(opening) Pass the ball through a narrow cone gate so it arrives with just enough pace for a partner to control easily."
+        case "High Press Sweeper":
+            return "\(opening) Stay alert off your line, rush out to clear long balls played in behind, and recover quickly to your goal."
+        case "Deflection Saves":
+            return "\(opening) React to a shot that's deflected off a cone or partner's foot, adjusting your body late to still make the save."
+        case "One Hand Parry":
+            return "\(opening) Push wide shots away with one strong hand when a shot is too far to catch with both, staying balanced on landing."
+        case "Short Corner Command":
+            return "\(opening) Organize an imaginary wall, communicate loudly, and attack any short corner service with confidence."
+        case "Breakaway Saves":
+            return "\(opening) Start on your line, read the moment to rush out as the attacker breaks through, and make yourself big to smother the shot."
+        case "Footwork Reset Saves":
+            return "\(opening) After every save, reset your feet into a balanced ready position immediately before the next shot arrives."
+        case "Channel Press":
+            return "\(opening) Force the attacker into a wide channel by angling your run, then close down to limit their passing options."
+        case "Shoulder Block Tackle":
+            return "\(opening) Time a fair shoulder-to-shoulder challenge as the attacker dribbles past, staying balanced rather than lunging."
+        case "Slide Tackle Timing":
+            return "\(opening) Practice sliding in only when the ball is clearly winnable, leading with the correct foot and getting up quickly after."
+        case "Overlap Tracking":
+            return "\(opening) Track a runner making an overlapping run, staying goal-side and communicating before handing off or following."
+        case "Compact Line Shuffle":
+            return "\(opening) Shuffle sideways in a straight line with a partner, staying level to simulate holding a compact defensive line."
+        case "Aerial Duel Timing":
+            return "\(opening) Time your jump against a tossed ball, leading with your body to win the header safely and cleanly."
+        case "Attacking Third Combination":
+            return "\(opening) Combine a pass, an overlapping run, and a cutback cross finished first time. Reset fully and repeat at match tempo."
+        case "High Press Counter Circuit":
+            return "\(opening) Press a cone immediately after an imaginary turnover, win it, then sprint forward in support of a quick counter-attack finish."
+        case "Finish Under Fatigue":
+            return "\(opening) Sprint a short shuttle first, then immediately receive and finish on goal while your legs are tired. Technique matters more as fatigue builds."
+        case "Possession Under Pressure Circuit":
+            return "\(opening) Keep the ball moving one-touch against a wall while a partner closes down from behind, forcing quick decisions."
+        case "Full Speed Skill Combo":
+            return "\(opening) Chain two skill moves back to back at full speed — for example a scissors into a chop — without slowing down between them."
+        case "Half Space Finish":
+            return "\(opening) Receive and finish from the half-space between the wing and the center, opening your body early to see the goal."
+        case "Driven Near Post Finish":
+            return "\(opening) Attack the near post with a driven, low finish, getting there before the ball to beat the keeper's angle."
+        case "Dipping Volley Finish":
+            return "\(opening) Strike a dropping ball on the volley with a short, compact swing so it dips sharply under the crossbar."
+        case "One v One Finish":
+            return "\(opening) Take on a cone as the last defender, create half a yard of space, and finish calmly rather than rushing the shot."
+        case "Backpost Tap In":
+            return "\(opening) Time a run to the back post to arrive just as a cross comes in, finishing with a simple touch across the line."
+        case "Knuckleball Finish":
+            return "\(opening) Strike the center of the ball with minimal spin using a stiff ankle and short follow-through so the shot moves unpredictably."
+        case "Snap Shot Finish":
+            return "\(opening) Get your shot away as quickly as possible after receiving, prioritizing a rapid release over a big backswing."
+        case "Double Scissors":
+            return "\(opening) Perform two scissor moves back to back over the ball, keeping your hips low and the ball glued to your feet, then burst away."
+        case "Fake Shot Dribble":
+            return "\(opening) Wind up as if shooting, let the ball run under your foot untouched, then push it past a cone in the opposite direction."
+        case "Cut Inside Burst":
+            return "\(opening) Dribble down the line, then cut sharply inside with your lead foot and accelerate into the space you've created."
+        case "La Croqueta":
+            return "\(opening) Push the ball quickly from one foot to the other across your body to shift direction and escape an imaginary defender."
+        case "Okocha Shoulder Drop":
+            return "\(opening) Drop your shoulder one way while touching the ball the other, selling the fake with your upper body before accelerating away."
+        case "Sombrero Flick":
+            return "\(opening) Flick the ball up and over an imaginary defender with one foot, then chase it down and bring it under control."
+        case "Heel to Heel Roll":
+            return "\(opening) Roll the ball from heel to heel behind your standing leg, keeping your touches light and close together."
+        case "Thigh to Foot Control":
+            return "\(opening) Cushion a tossed ball on your thigh, let it drop, and take the second touch cleanly with your foot into space."
+        case "Spin Out of Pressure":
+            return "\(opening) As the ball arrives, spin your whole body away from an imaginary defender in one motion, shielding the ball throughout."
+        case "First Touch Direction Change":
+            return "\(opening) Use your first touch to send the ball into a completely new direction rather than the way it arrived."
+        case "Juggle and Volley Control":
+            return "\(opening) Juggle a few touches, then let the ball drop and control it out of the air with a soft first touch."
+        case "Low Ball Cushion":
+            return "\(opening) Cushion a firm, low rolling pass dead with the sole or inside of your foot, keeping it within a half step of your body."
+        case "Receive Behind the Line":
+            return "\(opening) Check back to receive behind a marked line, then release forward quickly with your first touch."
+        case "Two Foot Juggling":
+            return "\(opening) Juggle using only alternating feet, never letting the same foot touch twice in a row."
+        case "Curved Wall Pass":
+            return "\(opening) Strike the ball with curve off a wall so it returns at an angle, controlling it smoothly on the way back."
+        case "One Touch Wall Combination":
+            return "\(opening) Play rapid one-touch passes against a wall, moving your position slightly after every pass to vary the angle."
+        case "Reverse Pass":
+            return "\(opening) Disguise your body shape to suggest one direction, then play the pass behind you or across your body instead."
+        case "Driven Target Pass":
+            return "\(opening) Strike a firm, flat pass at a specific target with your laces, prioritizing accuracy over distance."
+        case "Chip Over Gate":
+            return "\(opening) Strike underneath the ball to chip it cleanly over a low cone gate and onto a target beyond it."
+        case "Wide to Center Pass":
+            return "\(opening) Receive out wide and play an accurate pass infield to a central target, opening your body before the ball arrives."
+        case "Pass Under Pressure":
+            return "\(opening) Have a partner close you down as you receive. Keep your first touch away from them and release the pass quickly and accurately."
+        case "Tip Over the Bar":
+            return "\(opening) Get your fingertips to high shots and guide them up and over an imaginary crossbar rather than trying to catch them."
+        case "Low Spring Save":
+            return "\(opening) Explode low and sideways from a standing position to reach shots aimed at the corners of the goal."
+        case "Punch Clearance":
+            return "\(opening) When a catch isn't safe under pressure, punch crosses away firmly with both fists toward open space."
+        case "Set and React Saves":
+            return "\(opening) Get into your set position just before each shot, then react explosively rather than guessing early."
+        case "Narrow the Angle Sprint":
+            return "\(opening) Sprint off your line to narrow the shooting angle the instant an attacker breaks clear, then set your feet."
+        case "Double Save Reaction":
+            return "\(opening) Make an initial save, then immediately reset to react to a quick follow-up effort from a rebound."
+        case "Press and Recover":
+            return "\(opening) Press the ball carrier with controlled aggression, and if you're beaten, recover at full speed to regain your position."
+        case "Mark Tight Shadow":
+            return "\(opening) Stay close enough to an attacker to touch their shoulder, matching every movement without committing to a tackle."
+        case "Intercept and Clear":
+            return "\(opening) Step in front of a passing lane to intercept, then clear the ball safely and quickly to open space."
+        case "Hold the Line":
+            return "\(opening) Stay level with a partner acting as the defensive line, stepping up together rather than individually."
+        case "Recovery Sprint Angle":
+            return "\(opening) Sprint back on a curved angle that cuts off the attacker's path to goal rather than chasing in a straight line."
+        case "Read the Pass":
+            return "\(opening) Watch the passer's body shape to anticipate where the ball is going, then step in early to intercept."
+        case "Scan Before Touch":
+            return "\(opening) Check over both shoulders before the ball arrives, then control into the space you saw. Scan before every single touch."
+        case "Third Man Movement":
+            return "\(opening) Play a pass to one target with the intention of supporting a third player, reading where the next pass should go before you receive the ball."
+        case "Quick Decision Gates":
+            return "\(opening) Set up 3 cone gates in different directions. As the ball arrives, call out loud which gate you're playing through, then execute instantly."
+        case "Press Trigger Recognition":
+            return "\(opening) Watch for a heavy touch or a pass played with the receiver's back turned, and the instant you see it, explode into a press. Reset and repeat."
+        case "Switch of Play Reading":
+            return "\(opening) Practice recognizing when one side of the field is overloaded, then execute a long switching pass to the open side."
         default:
             break
         }
@@ -364,6 +671,14 @@ struct DrillTimerView: View {
             return "\(opening) Stay balanced, move with control, and reset your stance after every repetition."
         case "Plus Training":
             return "\(opening) Work at match speed while keeping clean technique. Slow down briefly if control drops, then build the speed again."
+        case "Technique":
+            return "\(opening) Go slowly at first to groove the movement, then build to full speed once it feels smooth and controlled."
+        case "Speed & Finishing":
+            return "\(opening) Sprint at full effort between touches, then settle and finish with a clear, composed strike."
+        case "First Touch":
+            return "\(opening) Prioritize a soft, controlling first touch over speed — a clean touch sets up everything that follows."
+        case "Soccer IQ":
+            return "\(opening) Stay switched on, scan the field before every touch, and talk through your decision out loud as you train."
         default:
             return "\(opening) Use good form, rest briefly when needed, drink water, and stop if you feel pain."
         }
@@ -526,23 +841,50 @@ struct DrillTimerView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 32) {
-                VStack(spacing: 12) {
-                    Image(systemName: "figure.soccer")
-                        .font(.system(size: 64, weight: .bold))
-                    Text(drillCategory.uppercased())
-                        .font(.headline)
-                        .fontWeight(.black)
-                }
-                .foregroundStyle(Color.soccerNavy)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 34)
-                .background(
+                ZStack(alignment: .bottom) {
+                    Image(DrillPresentation.imageName(for: drill.name, category: drillCategory))
+                        .resizable()
+                        .scaledToFill()
+                        .frame(height: 180)
+                        .frame(maxWidth: .infinity)
+                        .clipped()
+                        .overlay {
+                            // Only a handful of stock photos ship with the app, so tint
+                            // each drill's shared photo with its own stable hue.
+                            Color(hue: DrillPresentation.photoHue(for: drill.name), saturation: 0.6, brightness: 0.9)
+                                .opacity(0.4)
+                                .blendMode(.hue)
+                        }
+                        .clipped()
+
                     LinearGradient(
-                        colors: [Color.soccerLime, Color.soccerGreen],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
+                        colors: [.clear, Color.soccerNavy.opacity(0.88)],
+                        startPoint: .top,
+                        endPoint: .bottom
                     )
-                )
+
+                    VStack(spacing: 6) {
+                        Image(systemName: "figure.soccer")
+                            .font(.system(size: 34, weight: .bold))
+                        Text(drillCategory.uppercased())
+                            .font(.headline)
+                            .fontWeight(.black)
+                    }
+                    .padding(.bottom, 14)
+                }
+                .frame(height: 180)
+                .foregroundStyle(Color.soccerCream)
+                .overlay(alignment: .topTrailing) {
+                    if DrillPresentation.isIndoor(drill.name) {
+                        Label("Indoor", systemImage: "house.fill")
+                            .font(.caption.weight(.heavy))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(Color.soccerNavy.opacity(0.85), in: .capsule)
+                            .foregroundStyle(Color.soccerLime)
+                            .padding(12)
+                    }
+                }
 
                 Text(drill.name)
                     .font(.system(size: 42, weight: .heavy, design: .rounded))
@@ -550,7 +892,7 @@ struct DrillTimerView: View {
                     .padding(.horizontal)
 
                 Picker("Difficulty", selection: $trainingDifficulty) {
-                    ForEach(PassTurnDifficulty.allCases) { difficulty in
+                    ForEach(DrillDifficulty.allCases) { difficulty in
                         Text(difficulty.rawValue)
                             .tag(difficulty)
                     }
@@ -571,8 +913,8 @@ struct DrillTimerView: View {
                         icon: "clock.fill"
                     )
                     sessionFact(
-                        title: "LEVEL",
-                        value: "DEVELOPING",
+                        title: "LEVEL \(PlayerProgress(xp: playerXP).level)",
+                        value: PlayerProgress(xp: playerXP).levelTitle,
                         icon: "chart.bar.fill"
                     )
                 }
@@ -597,18 +939,6 @@ struct DrillTimerView: View {
                 .font(.title3)
                 .fontWeight(.bold)
                 .foregroundStyle(Color.soccerGreen)
-
-                Label(
-                    "Keep your device on and unlocked during the drill so the screen does not turn off.",
-                    systemImage: "iphone.gen3.radiowaves.left.and.right"
-                )
-                .font(.headline)
-                .multilineTextAlignment(.leading)
-                .padding()
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.soccerGold.opacity(0.18))
-                .clipShape(.rect(cornerRadius: 14))
-                .padding(.horizontal, 20)
 
             if isPassAndTurnDrill {
                 Text(passAndTurnInstructions)
@@ -697,7 +1027,7 @@ struct DrillTimerView: View {
                             category: drillCategory,
                             duration: drillDuration
                         )
-                        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { timer in
+                        let newTimer = Timer(timeInterval: 1, repeats: true) { timer in
                             let remaining = Int(endDate.timeIntervalSinceNow.rounded(.up))
                             if remaining > 0 {
                                 shootingCooldown = remaining
@@ -707,6 +1037,11 @@ struct DrillTimerView: View {
                                 DrillTimerLiveActivity.shared.finish()
                             }
                         }
+                        // Scheduling in the .common run loop mode keeps this firing
+                        // every second while this screen's ScrollView is being dragged,
+                        // instead of pausing and then skipping a displayed second.
+                        RunLoop.main.add(newTimer, forMode: .common)
+                        timer = newTimer
                     }
                     .font(.title)
                     .fontWeight(.bold)
@@ -779,7 +1114,7 @@ struct DrillTimerView: View {
                             category: drillCategory,
                             duration: drillDuration
                         )
-                        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { timer in
+                        let newTimer = Timer(timeInterval: 1, repeats: true) { timer in
                             let remaining = Int(endDate.timeIntervalSinceNow.rounded(.up))
                             if remaining > 0 {
                                 timeLeft = remaining
@@ -791,6 +1126,11 @@ struct DrillTimerView: View {
                                 finishTimedDrill()
                             }
                         }
+                        // Scheduling in the .common run loop mode keeps this firing
+                        // every second while this screen's ScrollView is being dragged,
+                        // instead of pausing and then skipping a displayed second.
+                        RunLoop.main.add(newTimer, forMode: .common)
+                        timer = newTimer
                     }
                 }
                 .font(.title2)
@@ -914,7 +1254,7 @@ struct DrillTimerView: View {
                     .textFieldStyle(.roundedBorder)
             }
 
-            Text("Points stay fixed. XP is calculated from your successful results and \(drillDuration / 60) minutes of training.")
+            Text("Points stay fixed. XP is calculated from your successful results and \(drillMinutes) minutes of training.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -1078,39 +1418,43 @@ struct DrillTimerView: View {
         guard !didRecordProgress else { return }
         didRecordProgress = true
 
-        let previousLevel = playerXP / 500 + 1
+        let previousXP = playerXP
         awardedPoints = pointsAward
         awardedXP = xpAward
         totalPoints += pointsAward
         playerXP += xpAward
-        totalTrainingMinutes += drillDuration / 60
+        let minutesTrained = drillMinutes
+        totalTrainingMinutes += minutesTrained
         totalSessions += 1
+
+        // Every category earns XP and training minutes uniformly, keyed by name
+        // in a single dictionary-backed store, rather than needing its own named
+        // @AppStorage property (that approach silently left newer categories like
+        // Goalkeeping/Defense/Plus Training earning no category-specific XP).
+        var progress = CategoryProgress(xpText: categoryXPText, minutesText: categoryMinutesText)
+        progress.addXP(xpAward, to: drillCategory)
+        progress.addMinutes(minutesTrained, to: drillCategory)
+        categoryXPText = progress.xpText
+        categoryMinutesText = progress.minutesText
 
         switch drillCategory {
         case "Shooting":
-            shootingXP += xpAward
             totalGoals += recordedSuccesses
             totalShots += recordedAttempts
         case "Dribbling":
-            dribblingXP += xpAward
             totalDribblingAttempts += recordedAttempts
         case "Passing":
-            passingXP += xpAward
             totalPasses += recordedSuccesses
-        case "Control":
-            controlXP += xpAward
+        case "Control", "First Touch":
             totalControls += recordedSuccesses
-        case "Workout":
-            fitnessXP += xpAward
         default:
             break
         }
 
         updateTrainingStreak()
 
-        let newLevel = playerXP / 500 + 1
-        if newLevel > previousLevel {
-            let levelsGained = newLevel - previousLevel
+        let levelsGained = PlayerProgress.levelsGained(fromXP: previousXP, toXP: playerXP)
+        if levelsGained > 0 {
             rewardBoxes += levelsGained
         }
     }

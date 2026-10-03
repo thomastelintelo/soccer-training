@@ -1,10 +1,10 @@
 // PassTurnDifficulty.swift
-// Difficulty levels for the Pass and Turn drill, and their effect on
-// callout pace, reward, and overall drill duration.
+// Difficulty levels for every drill's duration and point reward (despite the
+// filename, this isn't Pass-and-Turn-specific — only `calloutInterval` is).
 
 import Foundation
 
-enum PassTurnDifficulty: String, CaseIterable, Identifiable {
+enum DrillDifficulty: String, CaseIterable, Identifiable {
     case easy = "Easy"
     case medium = "Medium"
     case hard = "Hard"

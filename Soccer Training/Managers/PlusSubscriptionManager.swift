@@ -1,5 +1,5 @@
 // PlusSubscriptionManager.swift
-// Manages the Futbol Trainnier Plus monthly subscription.
+// Manages the Futbol Elite Plus monthly subscription.
 
 import Foundation
 import Observation
@@ -77,6 +77,13 @@ final class PlusSubscriptionManager {
                 hasActivePlus = true
             }
         }
+
+        #if DEBUG
+        if UserDefaults.standard.bool(forKey: "isProMember") {
+            statusMessage = "Plus is active (dev override)."
+            return
+        }
+        #endif
 
         UserDefaults.standard.set(hasActivePlus, forKey: "isProMember")
         if hasActivePlus {

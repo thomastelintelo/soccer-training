@@ -17,6 +17,7 @@
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "6F4AED2230571E2500F7B542"
                BuildableName = "Soccer Training.app"
+               BlueprintName = "Soccer Training"
                ReferencedContainer = "container:Soccer Training.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -46,6 +47,7 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "6F4AED2230571E2500F7B542"
             BuildableName = "Soccer Training.app"
+            BlueprintName = "Soccer Training"
             ReferencedContainer = "container:Soccer Training.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
@@ -62,6 +64,7 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "6F4AED2230571E2500F7B542"
             BuildableName = "Soccer Training.app"
+            BlueprintName = "Soccer Training"
             ReferencedContainer = "container:Soccer Training.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>

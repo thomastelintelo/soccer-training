@@ -2,9 +2,13 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CFBundleDisplayName</key>
+	<string>Futbol Elite</string>
 	<key>GADApplicationIdentifier</key>
 	<string>ca-app-pub-3940256099942544~1458002511</string>
-	<key>NSSupportsLiveActivities</key>
-	<true/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Futbol Elite uses your microphone to record your voice when you make a screen-recording video of the app.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Futbol Elite uses your camera to show you on screen when you make a video explaining the app.</string>
 </dict>
 </plist>

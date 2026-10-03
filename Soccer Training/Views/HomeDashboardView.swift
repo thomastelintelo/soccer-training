@@ -15,6 +15,20 @@ struct HomeDashboardView: View {
     @AppStorage("favoriteTeam") private var favoriteTeam = ""
     @AppStorage("weeklyDrillSubstitutions") private var substitutionText = ""
     @AppStorage("totalTrainingMinutes") private var totalTrainingMinutes = 0
+    @AppStorage("trainingStreak") private var trainingStreak = 0
+    @AppStorage("lastTrainingDate") private var lastTrainingDate = ""
+    @State private var hasAppeared = false
+
+    private var trainedToday: Bool {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar.current
+        formatter.dateFormat = "yyyy-MM-dd"
+        return lastTrainingDate == formatter.string(from: Date())
+    }
+
+    private var isStreakAtRisk: Bool {
+        trainingStreak > 0 && !trainedToday
+    }
 
     private var completedTaskIDs: Set<String> {
         Set(completedWeeklyTasks.split(separator: "|").map(String.init))
@@ -43,28 +57,58 @@ struct HomeDashboardView: View {
         }
     }
 
-    private var dailyChallengeDrill: Drill {
-        let choices = [
-            "Ball Mastery", "Wall Passing", "Cone Weave", "Juggling",
-            "Toe Tap Challenge", "Quick Shot", "Tight Space Turns",
-        ]
+    private let dailyChallengeChoices = [
+        "Ball Mastery", "Wall Passing", "Cone Weave", "Juggling",
+        "Toe Tap Challenge", "Quick Shot", "Tight Space Turns",
+        "Scan Before Touch", "Snap Shot Finish", "First Touch Gates",
+        "Jockeying", "Quick Feet",
+    ]
+
+    /// 3 daily challenges, each a different, deterministically-picked drill so
+    /// every player sees the same 3 for a given date. The offsets spread the
+    /// picks across the pool so they don't cluster next to each other.
+    private var dailyChallengeDrills: [Drill] {
         let dayNumber = Calendar.current.ordinality(of: .day, in: .era, for: Date()) ?? 0
-        return Drill(name: choices[dayNumber % choices.count])
+        let count = dailyChallengeChoices.count
+        return [0, 4, 8].map { offset in
+            Drill(name: dailyChallengeChoices[(dayNumber + offset) % count])
+        }
     }
 
-    private var dailyChallengeID: String {
+    private func dailyChallengeID(index: Int) -> String {
         let formatter = DateFormatter()
         formatter.calendar = Calendar.current
         formatter.dateFormat = "yyyy-MM-dd"
-        return "daily-\(formatter.string(from: Date()))"
+        return "daily-\(index)-\(formatter.string(from: Date()))"
     }
 
-    private var isDailyChallengeCompleted: Bool {
-        completedTaskIDs.contains(dailyChallengeID)
+    private func isDailyChallengeCompleted(index: Int) -> Bool {
+        completedTaskIDs.contains(dailyChallengeID(index: index))
     }
 
     private func displayedDrillName(for item: ScheduleItem, taskID: String) -> String {
         substitutions[taskID] ?? item.drillName
+    }
+
+    private func drillThumbnail(drillName: String, size: CGFloat) -> some View {
+        let category = DrillPresentation.category(for: drillName)
+        return Image(DrillPresentation.imageName(for: drillName, category: category))
+            .resizable()
+            .scaledToFill()
+            .frame(width: size, height: size)
+            .clipped()
+            .overlay {
+                // Only a handful of stock photos ship, so every drill tints its
+                // shared photo with its own stable hue, same as the Drills tab.
+                Color(hue: DrillPresentation.photoHue(for: drillName), saturation: 0.6, brightness: 0.9)
+                    .opacity(0.4)
+                    .blendMode(.hue)
+            }
+            .clipShape(.rect(cornerRadius: 12))
+            .overlay {
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.soccerCream.opacity(0.25), lineWidth: 1)
+            }
     }
 
     private func dashboardStat(
@@ -212,6 +256,30 @@ struct HomeDashboardView: View {
                         .font(.headline)
                         .foregroundStyle(Color.soccerCream.opacity(0.78))
 
+                    HStack(spacing: 10) {
+                        Image(systemName: "flame.fill")
+                            .font(.title2)
+                            .foregroundStyle(isStreakAtRisk ? Color.gray : Color.orange)
+                            .symbolEffect(.bounce, value: trainingStreak)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(trainingStreak > 0 ? "\(trainingStreak)-day streak" : "Start your streak today")
+                                .font(.headline)
+                                .fontWeight(.bold)
+                            Text(isStreakAtRisk ? "Train today to keep it alive" : "Train daily to keep it growing")
+                                .font(.caption)
+                                .foregroundStyle(Color.soccerCream.opacity(0.7))
+                        }
+
+                        Spacer()
+                    }
+                    .padding(12)
+                    .background(Color.soccerSurface, in: RoundedRectangle(cornerRadius: 14))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 14)
+                            .stroke(isStreakAtRisk ? Color.orange.opacity(0.6) : Color.clear, lineWidth: 2)
+                    }
+
                     HStack(spacing: 12) {
                         dashboardStat(
                             title: "Points",
@@ -248,11 +316,12 @@ struct HomeDashboardView: View {
 
                     VStack(alignment: .leading, spacing: 14) {
                         HStack {
-                            Label("Daily Challenge", systemImage: "calendar.badge.checkmark")
+                            Label("Daily Challenges", systemImage: "calendar.badge.checkmark")
                                 .font(.title2)
                                 .fontWeight(.heavy)
                             Spacer()
-                            Text(isDailyChallengeCompleted ? "DONE" : "+25 BONUS")
+                            let doneCount = dailyChallengeDrills.indices.filter { isDailyChallengeCompleted(index: $0) }.count
+                            Text("\(doneCount)/\(dailyChallengeDrills.count) DONE")
                                 .font(.caption)
                                 .fontWeight(.black)
                                 .padding(.horizontal, 10)
@@ -261,35 +330,46 @@ struct HomeDashboardView: View {
                                 .foregroundStyle(Color.soccerNavy)
                         }
 
-                        Text(dailyChallengeDrill.name)
-                            .font(.title3)
-                            .fontWeight(.bold)
-
-                        Text("Complete today’s challenge to earn the normal drill reward plus 25 bonus points. A new challenge appears each day.")
+                        Text("Each challenge earns the normal drill reward plus 25 bonus points. A new set appears every day.")
                             .font(.subheadline)
                             .foregroundStyle(Color.soccerCream.opacity(0.75))
 
-                        NavigationLink {
-                            DrillTimerView(
-                                drill: dailyChallengeDrill,
-                                totalPoints: $totalPoints,
-                                weeklyTaskID: dailyChallengeID,
-                                weeklyDay: dailyChallengeID
-                            )
-                        } label: {
-                            Label(
-                                isDailyChallengeCompleted ? "Challenge Completed" : "Start Daily Challenge",
-                                systemImage: isDailyChallengeCompleted ? "checkmark.circle.fill" : "play.fill"
-                            )
-                            .fontWeight(.bold)
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(
-                                isDailyChallengeCompleted ? Color.gray.opacity(0.45) : Color.soccerGreen,
-                                in: RoundedRectangle(cornerRadius: 14)
-                            )
+                        ForEach(Array(dailyChallengeDrills.enumerated()), id: \.offset) { index, drill in
+                            let completed = isDailyChallengeCompleted(index: index)
+
+                            HStack(spacing: 12) {
+                                drillThumbnail(drillName: drill.name, size: 48)
+
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(drill.name)
+                                        .font(.headline)
+                                        .fontWeight(.bold)
+                                    Text(completed ? "Completed" : "+25 bonus points")
+                                        .font(.caption)
+                                        .foregroundStyle(Color.soccerCream.opacity(0.7))
+                                }
+
+                                Spacer()
+
+                                NavigationLink {
+                                    DrillTimerView(
+                                        drill: drill,
+                                        totalPoints: $totalPoints,
+                                        weeklyTaskID: dailyChallengeID(index: index),
+                                        weeklyDay: dailyChallengeID(index: index)
+                                    )
+                                } label: {
+                                    Image(systemName: completed ? "checkmark.circle.fill" : "play.circle.fill")
+                                        .font(.title)
+                                        .foregroundStyle(completed ? Color.soccerLime : Color.soccerGreen)
+                                        .symbolEffect(.bounce, value: completed)
+                                }
+                                .disabled(completed)
+                            }
+                            .padding(10)
+                            .background(Color.soccerNavy.opacity(0.4), in: RoundedRectangle(cornerRadius: 12))
+                            .animation(.spring(response: 0.45, dampingFraction: 0.65), value: completed)
                         }
-                        .disabled(isDailyChallengeCompleted)
                     }
                     .padding()
                     .background(Color.soccerSurface)
@@ -321,6 +401,8 @@ struct HomeDashboardView: View {
                                             )
                                         } label: {
                                             HStack {
+                                                drillThumbnail(drillName: drillName, size: 48)
+
                                                 VStack(alignment: .leading, spacing: 4) {
                                                     Text(drillName)
                                                         .font(.headline)
@@ -345,6 +427,12 @@ struct HomeDashboardView: View {
                                             .contentShape(.rect)
                                         }
                                         .disabled(!isToday)
+                                        .opacity(hasAppeared ? 1 : 0)
+                                        .offset(x: hasAppeared ? 0 : -16)
+                                        .animation(
+                                            .spring(response: 0.4, dampingFraction: 0.7).delay(Double(item.id % 10) * 0.04),
+                                            value: hasAppeared
+                                        )
 
                                         Menu {
                                             Button {
@@ -393,6 +481,7 @@ struct HomeDashboardView: View {
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             resetWeeklyProgressIfNeeded()
+            hasAppeared = true
         }
     }
 

@@ -38,8 +38,8 @@ struct ContentView: View {
         ]),
         Topic(name: "Control", drills: [
             Drill(name: "Juggling"), Drill(name: "Wall Control"), Drill(name: "Inside-Outside Touches"),
-            Drill(name: "Sole Roll and Push"), Drill(name: "Aerial Control"), Drill(name: "First Touch Gates"),
-            Drill(name: "Thigh Control"), Drill(name: "Chest Control"), Drill(name: "Cushion Touch"),
+            Drill(name: "Sole Roll and Push"), Drill(name: "Aerial Control"),
+            Drill(name: "Chest Control"),
             Drill(name: "Outside Foot Control"), Drill(name: "Bounce Control"), Drill(name: "Half Turn Control"),
             Drill(name: "Directional First Touch"), Drill(name: "Sole Cushion"),
             Drill(name: "High Ball Settle"), Drill(name: "Turn on First Touch"),
@@ -74,8 +74,13 @@ struct ContentView: View {
             Drill(name: "Complete Midfielder Circuit"), Drill(name: "Striker Movement Circuit"),
             Drill(name: "Crossbar Challenge"), Drill(name: "Around the World"),
             Drill(name: "Beat the Cone"), Drill(name: "Weak Foot Hero"),
-            Drill(name: "Skill Move Combo"), Drill(name: "Rapid Fire Finishing"),
+            Drill(name: "Skill Move Combo"),
             Drill(name: "Perfect Pass Streak"), Drill(name: "Juggling Ladder"),
+            Drill(name: "Rapid Fire Volleys"), Drill(name: "Precision Cross Finish"),
+            Drill(name: "Technical Mastery Circuit"),
+            Drill(name: "One Touch Wonder"), Drill(name: "Elite Touch and Turn"),
+            Drill(name: "Pressure Cooker Finishing"),
+            Drill(name: "Target Practice Circuit"),
         ]),
         Topic(name: "Workout", drills: [
             Drill(name: "Running"), Drill(name: "Abs Circuit"), Drill(name: "Arm Strength"),
@@ -84,6 +89,32 @@ struct ContentView: View {
             Drill(name: "Balance Circuit"), Drill(name: "Quick Feet"),
             Drill(name: "Core Stability"), Drill(name: "Lateral Hops"),
             Drill(name: "Single Leg Strength"), Drill(name: "Mobility Flow"),
+        ]),
+        Topic(name: "Technique", drills: [
+            Drill(name: "Roulette Spin"), Drill(name: "Ronaldo Chop"), Drill(name: "Elastico Flick"),
+            Drill(name: "Hocus Pocus Spin"), Drill(name: "Berba Spin Turn"), Drill(name: "Matthews Fake"),
+            Drill(name: "Rainbow Flick"), Drill(name: "Nutmeg Attempt"), Drill(name: "Chop and Burst"),
+            Drill(name: "Inside Hook Turn"), Drill(name: "La Croqueta"), Drill(name: "Okocha Shoulder Drop"),
+        ]),
+        Topic(name: "Speed & Finishing", drills: [
+            Drill(name: "Snap Shot Finish"), Drill(name: "Rising Drive Finish"), Drill(name: "Laces Drive Finish"),
+            Drill(name: "One v One Finish"), Drill(name: "Rapid Fire Finishing"),
+            Drill(name: "Speed Finishing Ladder"), Drill(name: "Agility Gate Sprint"),
+            Drill(name: "Full Field Sprint Finish"), Drill(name: "Finish Under Fatigue"),
+        ]),
+        Topic(name: "First Touch", drills: [
+            Drill(name: "First Touch Gates"), Drill(name: "Thigh Control"), Drill(name: "Cushion Touch"),
+            Drill(name: "Spin Out of Pressure"), Drill(name: "Receive Under Pressure"),
+            Drill(name: "Two Touch Mastery"), Drill(name: "Open Body Control"),
+            Drill(name: "First Touch Direction Change"), Drill(name: "Receive Behind the Line"),
+            Drill(name: "Back Foot Control"),
+        ]),
+        Topic(name: "Soccer IQ", drills: [
+            Drill(name: "Scan Before Touch"), Drill(name: "Third Man Movement"),
+            Drill(name: "Quick Decision Gates"), Drill(name: "Press Trigger Recognition"),
+            Drill(name: "Switch of Play Reading"), Drill(name: "Numbers Up Counter"),
+            Drill(name: "Game Speed Scanning"), Drill(name: "Decision Under Pressure"),
+            Drill(name: "Field Awareness Circuit"), Drill(name: "Read and React Passing"),
         ]),
     ]
 
@@ -189,8 +220,14 @@ struct ContentView: View {
             }
         }
         .id(favoriteTeam)
+        .transition(.opacity)
+        .animation(.easeInOut(duration: 0.35), value: favoriteTeam)
         .tint(FavoriteTeam(rawValue: favoriteTeam)?.highlightColor ?? .soccerLime)
-
+        .overlay(alignment: .topTrailing) {
+            // Stays on top across every tab while recording, since the
+            // camera bubble shouldn't disappear just from navigating.
+            CameraPreviewBubble()
+        }
     }
 }
 

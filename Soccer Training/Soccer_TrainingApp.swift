@@ -6,10 +6,84 @@
 //
 
 import SwiftUI
+import UIKit
+
+// MARK: - Excitement Helpers
+enum Haptics {
+    static func tap() { UIImpactFeedbackGenerator(style: .light).impactOccurred() }
+    static func success() { UINotificationFeedbackGenerator().notificationOccurred(.success) }
+    static func soft() { UIImpactFeedbackGenerator(style: .soft).impactOccurred() }
+}
+
+struct ConfettiView: View {
+    @State private var particles: [UUID] = []
+    var body: some View {
+        ZStack {
+            ForEach(particles, id: \.self) { _ in
+                Circle()
+                    .fill([Color.soccerLime, .soccerGreen, .soccerGold, .yellow].randomElement()!)
+                    .frame(width: 6, height: 6)
+                    .modifier(ConfettiMotion())
+            }
+        }
+        .allowsHitTesting(false)
+        .onAppear {
+            particles = (0..<44).map { _ in UUID() }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { particles.removeAll() }
+        }
+    }
+}
+
+private struct ConfettiMotion: ViewModifier {
+    @State private var x: CGFloat = 0
+    @State private var y: CGFloat = 0
+    func body(content: Content) -> some View {
+        content
+            .offset(x: x, y: y)
+            .onAppear {
+                withAnimation(.interpolatingSpring(stiffness: 30, damping: 6)) {
+                    x = CGFloat.random(in: -90...90)
+                    y = CGFloat.random(in: 120...240)
+                }
+            }
+    }
+}
+
+private struct PlayerCreateHeroHeader: View {
+    @State private var animate = false
+    var body: some View {
+        ZStack {
+            LinearGradient(
+                colors: [Color.soccerGreen.opacity(0.85), Color.soccerNavy.opacity(0.85)],
+                startPoint: animate ? .topLeading : .bottomTrailing,
+                endPoint: animate ? .bottomTrailing : .topLeading
+            )
+            .animation(.easeInOut(duration: 3).repeatForever(autoreverses: true), value: animate)
+
+            VStack(spacing: 8) {
+                Image(systemName: "figure.soccer")
+                    .font(.system(size: 56))
+                    .foregroundStyle(Color.soccerLime)
+                    .symbolEffect(.bounce, options: .repeating, value: animate)
+                Text("Create Your Player")
+                    .font(.largeTitle).bold()
+                Text("Kick off your journey")
+                    .font(.subheadline)
+                    .foregroundStyle(Color.soccerCream.opacity(0.9))
+            }
+            .padding(.vertical, 16)
+        }
+        .frame(height: 180)
+        .clipShape(.rect(cornerRadius: 22))
+        .shadow(color: .black.opacity(0.2), radius: 14, y: 8)
+        .onAppear { animate = true }
+    }
+}
 
 struct LaunchContainerView: View {
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var hasStarted = false
+    @State private var hasSeenBenefits = false
 
     var body: some View {
         ZStack {
@@ -18,8 +92,15 @@ struct LaunchContainerView: View {
             if hasStarted {
                 if hasCompletedOnboarding {
                     ContentView()
-                } else {
+                } else if hasSeenBenefits {
                     PlayerSignInView(isSignedIn: $hasCompletedOnboarding)
+                } else {
+                    AppBenefitsView {
+                        withAnimation(.easeOut(duration: 0.35)) {
+                            hasSeenBenefits = true
+                        }
+                    }
+                    .transition(.opacity)
                 }
             }
 
@@ -35,14 +116,105 @@ struct LaunchContainerView: View {
     }
 }
 
+private struct AppBenefitsView: View {
+    let onContinue: () -> Void
+
+    private let benefits: [(icon: String, title: String, detail: String)] = [
+        ("list.bullet.clipboard.fill", "150+ Training Drills", "Shooting, dribbling, passing, goalkeeping, and a lot more — for every position."),
+        ("checkmark.seal.fill", "Free to Play", "No account needed, and nothing to pay. A few optional extras are in there if you ever want them."),
+        ("star.fill", "Earn Points, Build Your Team", "Complete drills to earn points, then sign real players and build your Starting 11."),
+        ("calendar.badge.checkmark", "Daily Challenges", "Fresh challenges every day keep training fun and rewarding."),
+        ("chart.bar.fill", "Track Your Progress", "Your Profile shows your level, stats, and achievements as you improve."),
+    ]
+
+    var body: some View {
+        ZStack {
+            LinearGradient(
+                colors: [Color.soccerNavy.opacity(0.96), Color.soccerGreen.opacity(0.78)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
+
+            ScrollView {
+                VStack(spacing: 22) {
+                    VStack(spacing: 10) {
+                        Image(systemName: "figure.soccer")
+                            .font(.system(size: 54))
+                            .foregroundStyle(Color.soccerLime)
+                        Text("Welcome to Futbol Elite")
+                            .font(.largeTitle)
+                            .fontWeight(.heavy)
+                            .multilineTextAlignment(.center)
+                        Text("Here's what you're getting.")
+                            .font(.title3)
+                            .foregroundStyle(Color.soccerCream.opacity(0.85))
+                    }
+                    .padding(.top, 20)
+
+                    VStack(spacing: 14) {
+                        ForEach(benefits, id: \.title) { benefit in
+                            HStack(spacing: 16) {
+                                Image(systemName: benefit.icon)
+                                    .font(.title2)
+                                    .foregroundStyle(Color.soccerNavy)
+                                    .frame(width: 40, height: 40)
+                                    .background(Color.soccerLime, in: Circle())
+
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(benefit.title)
+                                        .font(.headline)
+                                        .fontWeight(.bold)
+                                    Text(benefit.detail)
+                                        .font(.subheadline)
+                                        .foregroundStyle(Color.soccerCream.opacity(0.8))
+                                }
+                                Spacer(minLength: 0)
+                            }
+                            .padding(14)
+                            .background(Color.soccerCream.opacity(0.1), in: RoundedRectangle(cornerRadius: 16))
+                        }
+                    }
+
+                    Button(action: onContinue) {
+                        Label("Let's Go", systemImage: "arrow.right.circle.fill")
+                            .font(.title3)
+                            .fontWeight(.bold)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.soccerLime)
+                            .foregroundStyle(Color.soccerNavy)
+                            .clipShape(.rect(cornerRadius: 16))
+                    }
+                    .padding(.top, 8)
+                }
+                .padding(24)
+            }
+        }
+        .foregroundStyle(Color.soccerCream)
+    }
+}
+
 private struct WelcomeStartView: View {
     let startTraining: () -> Void
 
     var body: some View {
         ZStack {
-            Image("SoccerHero")
+            LinearGradient(
+                colors: [Color.soccerGreen.opacity(0.85), Color.soccerNavy],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
+
+            // A drawn stick-figure pictogram instead of a real player's
+            // photo, so the splash screen isn't tied to any one athlete.
+            Image(systemName: "figure.soccer")
                 .resizable()
-                .scaledToFill()
+                .scaledToFit()
+                .frame(width: 460, height: 460)
+                .foregroundStyle(Color.soccerLime.opacity(0.18))
+                .offset(y: -60)
                 .ignoresSafeArea()
 
             LinearGradient(
@@ -64,7 +236,7 @@ private struct WelcomeStartView: View {
                     .foregroundStyle(Color.soccerLime)
                     .shadow(color: .black.opacity(0.35), radius: 10, y: 5)
 
-                Text("Futbol Trainnier")
+                Text("Futbol Elite")
                     .font(.system(size: 46, weight: .heavy, design: .rounded))
                     .multilineTextAlignment(.center)
                     .foregroundStyle(Color.soccerCream)
@@ -103,6 +275,7 @@ struct PlayerSignInView: View {
     @State private var username = ""
     @State private var position = ""
     @State private var bestSkill = ""
+    @State private var showConfetti = false
 
     private let positions = [
         "Goalkeeper",
@@ -137,6 +310,8 @@ struct PlayerSignInView: View {
 
             ScrollView {
                 VStack(spacing: 24) {
+                    PlayerCreateHeroHeader()
+
                     Image(systemName: "figure.soccer")
                         .font(.system(size: 72))
                         .foregroundStyle(Color.soccerLime)
@@ -204,25 +379,46 @@ struct PlayerSignInView: View {
                         .clipShape(.rect(cornerRadius: 12))
                     }
 
-                    Button("Sign In") {
-                        savedUsername = username.trimmingCharacters(in: .whitespacesAndNewlines)
+                    Button {
+                        let trimmed = username.trimmingCharacters(in: .whitespacesAndNewlines)
+                        guard !trimmed.isEmpty, !position.isEmpty, !bestSkill.isEmpty, !favoriteTeam.isEmpty else {
+                            Haptics.soft()
+                            return
+                        }
+                        Haptics.success()
+                        savedUsername = trimmed
                         savedPosition = position
                         savedBestSkill = bestSkill
                         isSignedIn = true
+                        withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
+                            showConfetti = true
+                        }
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.1) {
+                            showConfetti = false
+                        }
+                    } label: {
+                        Label("Sign In", systemImage: "sparkles")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(canSignIn ? Color.soccerLime : Color.gray)
+                            .foregroundStyle(Color.soccerNavy)
+                            .clipShape(.rect(cornerRadius: 14))
                     }
-                    .font(.title2)
-                    .fontWeight(.bold)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(canSignIn ? Color.soccerLime : Color.gray)
-                    .foregroundStyle(Color.soccerNavy)
-                    .clipShape(.rect(cornerRadius: 14))
                     .disabled(!canSignIn)
+
                 }
                 .padding(24)
             }
         }
         .foregroundStyle(Color.soccerCream)
+        .overlay(alignment: .top) {
+            if showConfetti {
+                ConfettiView()
+                    .transition(.opacity)
+            }
+        }
     }
 }
 
@@ -230,6 +426,45 @@ struct PlayerSignInView: View {
 struct Soccer_TrainingApp: App {
     init() {
         DrillTimerLiveActivity.shared.configure()
+        #if DEBUG
+        UserDefaults.standard.register(defaults: ["isProMember": true])
+        #endif
+        Self.migrateCategoryProgressIfNeeded()
+    }
+
+    /// The 5 original category XP/minute pairs used to be their own named
+    /// @AppStorage keys (one category = one property). That doesn't scale as
+    /// categories are added, so progress now lives in a single dictionary-backed
+    /// `CategoryProgress` store. This runs once to fold the old values in.
+    private static func migrateCategoryProgressIfNeeded() {
+        let defaults = UserDefaults.standard
+        guard defaults.integer(forKey: "categoryProgressMigrated") < 1 else { return }
+
+        let legacyXPKeys = [
+            ("shootingXP", "Shooting"), ("dribblingXP", "Dribbling"), ("passingXP", "Passing"),
+            ("controlXP", "Control"), ("fitnessXP", "Workout"),
+        ]
+        let legacyMinuteKeys = [
+            ("shootingMinutes", "Shooting"), ("dribblingMinutes", "Dribbling"), ("passingMinutes", "Passing"),
+            ("controlMinutes", "Control"), ("fitnessMinutes", "Workout"),
+        ]
+
+        var progress = CategoryProgress(
+            xpText: defaults.string(forKey: "categoryXP") ?? "",
+            minutesText: defaults.string(forKey: "categoryMinutes") ?? ""
+        )
+        for (key, category) in legacyXPKeys {
+            let value = defaults.integer(forKey: key)
+            if value > 0 { progress.addXP(value, to: category) }
+        }
+        for (key, category) in legacyMinuteKeys {
+            let value = defaults.integer(forKey: key)
+            if value > 0 { progress.addMinutes(value, to: category) }
+        }
+
+        defaults.set(progress.xpText, forKey: "categoryXP")
+        defaults.set(progress.minutesText, forKey: "categoryMinutes")
+        defaults.set(1, forKey: "categoryProgressMigrated")
     }
 
     var body: some Scene {

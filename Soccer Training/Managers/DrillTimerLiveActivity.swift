@@ -22,8 +22,13 @@ final class DrillTimerLiveActivity: NSObject {
     private var startTask: Task<Void, Never>?
 
     /// Call once at launch so the chime also plays if the timer finishes while the app is open.
+    /// Also requests notification permission up front, so it's already granted by the time a
+    /// drill finishes with the screen locked instead of racing a just-in-time prompt.
     func configure() {
         UNUserNotificationCenter.current().delegate = self
+        Task {
+            _ = try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound])
+        }
     }
 
     func start(drillName: String, category: String, duration: Int) {
@@ -118,6 +123,8 @@ final class DrillTimerLiveActivity: NSObject {
         content.title = "Time's up!"
         content.body = "\(drillName) is complete. Open the app to log your drill."
         content.sound = UNNotificationSound(named: UNNotificationSoundName(Self.alarmSoundName))
+        // Time-sensitive so it still breaks through on the lock screen or in a Focus mode.
+        content.interruptionLevel = .timeSensitive
 
         let interval = max(1, endDate.timeIntervalSinceNow)
         let request = UNNotificationRequest(

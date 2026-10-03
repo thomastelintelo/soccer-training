@@ -4,6 +4,208 @@
 import StoreKit
 import SwiftUI
 
+#if DEBUG
+private struct DevPlusUnlockView: View {
+    @AppStorage("isProMember") private var isProMember = false
+    @AppStorage("totalPoints") private var totalPoints = 0
+
+    var body: some View {
+        Form {
+            Section {
+                Toggle("Plus Mode", isOn: $isProMember)
+            } footer: {
+                Text("Simulates an active Plus subscription without a real purchase. Debug builds only.")
+            }
+
+            Section {
+                Button("Add 1,000 Points") { totalPoints += 1000 }
+                Button("Reset Points to 0", role: .destructive) { totalPoints = 0 }
+            } footer: {
+                Text("Grants free points for testing crates and player purchases. Debug builds only.")
+            }
+        }
+        .navigationTitle("Dev Tools")
+    }
+}
+private typealias _DevToolsView = DevPlusUnlockView
+#else
+private struct _DevToolsView: View { var body: some View { EmptyView() } }
+#endif
+
+private struct ShopTotalPointsKey: EnvironmentKey { static let defaultValue: Int = 0 }
+extension EnvironmentValues { var _shopTotalPoints: Int { get { self[ShopTotalPointsKey.self] } set { self[ShopTotalPointsKey.self] = newValue } } }
+
+private struct ShopHeader: View {
+    @Environment(\._shopTotalPoints) private var _totalPoints
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("BUILD YOUR DREAM TEAM")
+                .font(.caption)
+                .fontWeight(.black)
+                .tracking(1.2)
+
+            HStack(alignment: .firstTextBaseline) {
+                Text("Transfer Market")
+                    .font(.largeTitle)
+                    .fontWeight(.heavy)
+                Spacer()
+                Label("\(_totalPoints)", systemImage: "star.fill")
+                    .font(.title2)
+                    .fontWeight(.heavy)
+            }
+
+            Text("Open crates or sign players by position. Better crates cost more and give stronger odds.")
+                .font(.subheadline)
+                .fontWeight(.semibold)
+        }
+        .foregroundStyle(Color.soccerNavy)
+        .padding(18)
+        .background(
+            LinearGradient(
+                colors: [Color.soccerLime, Color.soccerGreen],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            in: RoundedRectangle(cornerRadius: 20)
+        )
+    }
+}
+
+private struct CrateReveal: Identifiable {
+    let id = UUID()
+    let icon: String
+    let tint: Color
+    let title: String
+    let subtitle: String
+}
+
+private struct CratePresentView: View {
+    let reward: CrateReveal
+    let onDismiss: () -> Void
+
+    @State private var isUnwrapped = false
+    @State private var lidOffset: CGFloat = 0
+    @State private var boxWiggle: Double = 0
+    @State private var showConfetti = false
+    @State private var showReward = false
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.75).ignoresSafeArea()
+
+            if showConfetti {
+                ConfettiView()
+            }
+
+            if !isUnwrapped {
+                VStack(spacing: 20) {
+                    Text("A gift arrived!")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .foregroundStyle(Color.soccerCream)
+
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(
+                                LinearGradient(
+                                    colors: [Color.soccerGreen, Color.soccerNavy],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .frame(width: 160, height: 130)
+                            .overlay(
+                                Rectangle()
+                                    .fill(Color.soccerGold)
+                                    .frame(width: 22)
+                            )
+                            .overlay(
+                                Rectangle()
+                                    .fill(Color.soccerGold)
+                                    .frame(height: 22)
+                            )
+
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(Color.soccerGold)
+                            .frame(width: 56, height: 44)
+                            .rotationEffect(.degrees(-40))
+                            .offset(x: -18, y: -66)
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(Color.soccerGold)
+                            .frame(width: 56, height: 44)
+                            .rotationEffect(.degrees(40))
+                            .offset(x: 18, y: -66)
+                    }
+                    .rotationEffect(.degrees(boxWiggle))
+                    .onAppear {
+                        withAnimation(.easeInOut(duration: 0.15).repeatForever(autoreverses: true)) {
+                            boxWiggle = 4
+                        }
+                    }
+
+                    Text("Tap to open")
+                        .font(.headline)
+                        .foregroundStyle(Color.soccerLime)
+                }
+                .transition(.opacity)
+                .onTapGesture {
+                    Haptics.success()
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
+                        isUnwrapped = true
+                    }
+                    showConfetti = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                        withAnimation(.spring(response: 0.5, dampingFraction: 0.65)) {
+                            showReward = true
+                        }
+                    }
+                }
+            } else {
+                VStack(spacing: 18) {
+                    Image(systemName: reward.icon)
+                        .font(.system(size: 76))
+                        .foregroundStyle(reward.tint)
+                        .symbolEffect(.bounce, value: showReward)
+                        .scaleEffect(showReward ? 1 : 0.3)
+                        .opacity(showReward ? 1 : 0)
+
+                    Text(reward.title)
+                        .font(.largeTitle)
+                        .fontWeight(.heavy)
+                        .foregroundStyle(Color.soccerCream)
+                        .multilineTextAlignment(.center)
+                        .opacity(showReward ? 1 : 0)
+
+                    Text(reward.subtitle)
+                        .font(.headline)
+                        .foregroundStyle(Color.soccerCream.opacity(0.85))
+                        .multilineTextAlignment(.center)
+                        .opacity(showReward ? 1 : 0)
+
+                    if showReward {
+                        Button("Awesome!") {
+                            Haptics.tap()
+                            onDismiss()
+                        }
+                        .font(.headline)
+                        .fontWeight(.heavy)
+                        .frame(maxWidth: .infinity)
+                        .frame(minHeight: 52)
+                        .background(Color.soccerLime)
+                        .foregroundStyle(Color.soccerNavy)
+                        .clipShape(.rect(cornerRadius: 14))
+                        .padding(.horizontal, 40)
+                        .padding(.top, 8)
+                        .transition(.opacity)
+                    }
+                }
+                .padding(24)
+            }
+        }
+    }
+}
+
 private struct CrateOdds {
     let goat: Int
     let superstar: Int
@@ -52,36 +254,36 @@ private enum PlayerCrateTier: String, CaseIterable, Identifiable {
         switch self {
         case .starter:
             CrateOdds(
-                goat: 10,
-                superstar: 1_000,
-                legendary: 2_000,
-                elite: 3_000,
-                otherRare: 5_000,
-                good: 20_000,
+                goat: 5,
+                superstar: 500,
+                legendary: 1_000,
+                elite: 1_500,
+                otherRare: 2_500,
+                good: 10_000,
                 points: 10_000,
-                regular: 58_990
+                regular: 74_495
             )
         case .pro:
             CrateOdds(
-                goat: 50,
-                superstar: 2_500,
-                legendary: 4_000,
-                elite: 6_000,
-                otherRare: 7_500,
-                good: 30_000,
+                goat: 25,
+                superstar: 1_250,
+                legendary: 2_000,
+                elite: 3_000,
+                otherRare: 3_750,
+                good: 15_000,
                 points: 10_000,
-                regular: 39_950
+                regular: 64_975
             )
         case .premium:
             CrateOdds(
-                goat: 200,
-                superstar: 5_000,
-                legendary: 7_000,
-                elite: 9_000,
-                otherRare: 10_000,
-                good: 40_000,
+                goat: 100,
+                superstar: 2_500,
+                legendary: 3_500,
+                elite: 4_500,
+                otherRare: 5_000,
+                good: 20_000,
                 points: 10_000,
-                regular: 18_800
+                regular: 54_400
             )
         }
     }
@@ -143,10 +345,11 @@ private struct PlayerCrateCard: View {
 struct PlayerShopView: View {
     @Binding var totalPoints: Int
     @AppStorage("ownedPlayerIDs") private var ownedPlayerIDs = ""
-    @AppStorage("playerShopDailyStockV6") private var stockText = ""
-    @AppStorage("playerShopLastDailyRestockV6") private var lastRestock = 0.0
+    @AppStorage("playerShopDailyStockV7") private var stockText = ""
+    @AppStorage("playerShopLastDailyRestockV7") private var lastRestock = 0.0
     @State private var shopMessage = ""
     @State private var showShopMessage = false
+    @State private var crateReveal: CrateReveal?
     @State private var searchText = ""
     @State private var selectedPosition = "All"
     @State private var yamalProduct: Product?
@@ -189,6 +392,14 @@ struct PlayerShopView: View {
         return savedStock
     }
 
+    /// The best player currently in stock, shown as a hero card so opening
+    /// the shop feels like unveiling today's star signing.
+    private var featuredPlayer: SoccerPlayer? {
+        regularPlayers
+            .filter { !ownedIDs.contains($0.id) }
+            .max { $0.overall < $1.overall }
+    }
+
     private var matchingPlayers: [SoccerPlayer] {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !query.isEmpty else { return [] }
@@ -211,37 +422,16 @@ struct PlayerShopView: View {
     var body: some View {
         List {
             Section {
-                VStack(alignment: .leading, spacing: 14) {
-                    Text("BUILD YOUR DREAM TEAM")
-                        .font(.caption)
-                        .fontWeight(.black)
-                        .tracking(1.2)
+                ShopHeader()
+                    .listRowBackground(Color.clear)
+            }
 
-                    HStack(alignment: .firstTextBaseline) {
-                        Text("Transfer Market")
-                            .font(.largeTitle)
-                            .fontWeight(.heavy)
-                        Spacer()
-                        Label("\(totalPoints)", systemImage: "star.fill")
-                            .font(.title2)
-                            .fontWeight(.heavy)
-                    }
-
-                    Text("Open crates or sign players by position. Better crates cost more and give stronger odds.")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
+            if let featuredPlayer {
+                Section {
+                    featuredPlayerCard(featuredPlayer)
+                        .listRowBackground(Color.clear)
+                        .frame(maxWidth: .infinity)
                 }
-                .foregroundStyle(Color.soccerNavy)
-                .padding(18)
-                .background(
-                    LinearGradient(
-                        colors: [Color.soccerLime, Color.soccerGreen],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    in: RoundedRectangle(cornerRadius: 20)
-                )
-                .listRowBackground(Color.clear)
             }
 
             Section("Choose Position") {
@@ -306,6 +496,14 @@ struct PlayerShopView: View {
         .scrollContentBackground(.hidden)
         .background(Color.soccerNavy)
         .navigationTitle("Player Shop")
+        .environment(\._shopTotalPoints, totalPoints)
+        .toolbar {
+            #if DEBUG
+            ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink("Dev") { _DevToolsView() }
+            }
+            #endif
+        }
         .safeAreaPadding(.bottom, 72)
         .searchable(text: $searchText, prompt: "Search players or positions")
         .onAppear {
@@ -318,6 +516,11 @@ struct PlayerShopView: View {
             Button("OK") { }
         } message: {
             Text(shopMessage)
+        }
+        .fullScreenCover(item: $crateReveal) { reveal in
+            CratePresentView(reward: reveal) {
+                crateReveal = nil
+            }
         }
     }
 
@@ -385,37 +588,14 @@ struct PlayerShopView: View {
         }
     }
 
-    private func playerRow(_ player: SoccerPlayer) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(player.name)
-                        .font(.headline)
-                    Text("\(player.position) • Overall \(player.overall)")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
+    private func featuredPlayerCard(_ player: SoccerPlayer) -> some View {
+        VStack(spacing: 10) {
+            Label("Featured Today", systemImage: "star.circle.fill")
+                .font(.headline)
+                .fontWeight(.heavy)
+                .foregroundStyle(Color.soccerGold)
 
-                Spacer()
-
-                Text("OVR \(player.overall)")
-                    .fontWeight(.heavy)
-                    .padding(8)
-                    .background(player.overall >= 89 ? Color.soccerGreen : Color.soccerSurface)
-                    .foregroundStyle(Color.soccerCream)
-                    .clipShape(.rect(cornerRadius: 9))
-            }
-
-            HStack {
-                Label("\(player.cost) points", systemImage: "star.fill")
-                    .foregroundStyle(Color.soccerGreen)
-                Spacer()
-                if !ownedIDs.contains(player.id) {
-                    Label("Available", systemImage: "checkmark.circle.fill")
-                        .foregroundStyle(Color.soccerLime)
-                }
-            }
-            .font(.subheadline)
+            PlayerCardView(player: player, effectiveOverall: player.overall)
 
             Button(buttonTitle(for: player)) {
                 buy(player)
@@ -423,11 +603,73 @@ struct PlayerShopView: View {
             .font(.headline)
             .fontWeight(.heavy)
             .frame(maxWidth: .infinity)
-            .frame(minHeight: 58)
+            .frame(minHeight: 50)
             .background(canBuy(player) ? Color.soccerGreen : Color.gray)
             .foregroundStyle(Color.soccerCream)
             .clipShape(.rect(cornerRadius: 14))
             .disabled(!canBuy(player))
+            .padding(.horizontal, 24)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+    }
+
+    private func tierLabel(for player: SoccerPlayer) -> String {
+        switch PlayerCardTier.tier(for: player.overall) {
+        case .special: "SPECIAL"
+        case .gold: "GOLD"
+        case .silver: "SILVER"
+        case .bronze: "BRONZE"
+        }
+    }
+
+    private func playerRow(_ player: SoccerPlayer) -> some View {
+        HStack(alignment: .top, spacing: 14) {
+            PlayerCardView(player: player, effectiveOverall: player.overall)
+                .scaleEffect(0.55)
+                .frame(width: 220 * 0.55, height: 300 * 0.55)
+
+            VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(player.name)
+                        .font(.headline)
+                    HStack(spacing: 6) {
+                        Text(player.position)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        Text(tierLabel(for: player))
+                            .font(.caption2.weight(.heavy))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.soccerGold.opacity(0.25), in: .capsule)
+                            .foregroundStyle(Color.soccerGold)
+                    }
+                }
+
+                Label("\(player.cost) points", systemImage: "star.fill")
+                    .font(.subheadline)
+                    .foregroundStyle(Color.soccerGreen)
+
+                if !ownedIDs.contains(player.id) {
+                    Label("Available", systemImage: "checkmark.circle.fill")
+                        .font(.subheadline)
+                        .foregroundStyle(Color.soccerLime)
+                }
+
+                Spacer(minLength: 0)
+
+                Button(buttonTitle(for: player)) {
+                    buy(player)
+                }
+                .font(.headline)
+                .fontWeight(.heavy)
+                .frame(maxWidth: .infinity)
+                .frame(minHeight: 50)
+                .background(canBuy(player) ? Color.soccerGreen : Color.gray)
+                .foregroundStyle(Color.soccerCream)
+                .clipShape(.rect(cornerRadius: 14))
+                .disabled(!canBuy(player))
+            }
         }
         .padding(.vertical, 8)
     }
@@ -453,6 +695,10 @@ struct PlayerShopView: View {
         updatedOwnedIDs.insert(player.id)
         ownedPlayerIDs = updatedOwnedIDs.sorted().joined(separator: "|")
         totalPoints -= player.cost
+
+        var updatedStock = stock
+        updatedStock[player.id] = max(0, updatedStock[player.id, default: 0] - 1)
+        saveStock(updatedStock)
 
         shopMessage = "\(player.name) was added to My Team!"
         showShopMessage = true
@@ -525,22 +771,47 @@ struct PlayerShopView: View {
 
         if ownedIDs.contains(player.id) {
             totalPoints += 50
-            shopMessage = "Duplicate \(player.name)! You received 50 points instead."
+            crateReveal = CrateReveal(
+                icon: "arrow.triangle.2.circlepath",
+                tint: .secondary,
+                title: "Duplicate!",
+                subtitle: "\(player.name) again — enjoy 50 points instead."
+            )
         } else {
             var updatedOwnedIDs = ownedIDs
             updatedOwnedIDs.insert(player.id)
             ownedPlayerIDs = updatedOwnedIDs.sorted().joined(separator: "|")
-            shopMessage = "\(tierName): You unlocked \(player.name)!"
+            crateReveal = CrateReveal(
+                icon: "star.fill",
+                tint: tierTint(tierName),
+                title: tierName,
+                subtitle: "\(player.name) joins your team!"
+            )
         }
-
-        showShopMessage = true
     }
 
     private func awardCratePoints() {
-        let pointsWon = Int.random(in: 50...150)
+        let pointsWon = Int.random(in: 5...15) * 10
         totalPoints += pointsWon
-        shopMessage = "You won \(pointsWon) points!"
-        showShopMessage = true
+        crateReveal = CrateReveal(
+            icon: "star.circle.fill",
+            tint: Color.soccerGold,
+            title: "Bonus Points!",
+            subtitle: "You won \(pointsWon) points!"
+        )
+    }
+
+    private func tierTint(_ tierName: String) -> Color {
+        switch tierName {
+        case "GOAT", "Superstar":
+            return Color.soccerGold
+        case "Legendary player", "Elite player":
+            return Color.soccerLime
+        case "Other rare", "Good player":
+            return Color.soccerGreen
+        default:
+            return Color.soccerCream
+        }
     }
 
     private func restockIfNeeded() {
@@ -567,27 +838,6 @@ struct PlayerShopView: View {
         }
     }
 
-    private func dailyStockChance(for player: SoccerPlayer) -> Int {
-        switch player.id {
-        case "ronaldo", "messi", "pele":
-            1
-        case "ronaldo_nazario", "maradona":
-            2
-        case "yamal", "mbappe", "haaland", "neymar":
-            3
-        case "van_dijk", "vinicius", "bellingham", "kane":
-            4
-        case "saka", "rodri", "pedri", "martinez_gk":
-            10
-        case "alisson", "neuer", "maignan", "raya", "costa":
-            15
-        case "salah":
-            20
-        default:
-            player.overall >= 85 ? 20 : 80
-        }
-    }
-
     private func saveStock(_ stock: [String: Int]) {
         stockText = stock
             .map { "\($0.key):\($0.value)" }
@@ -595,3 +845,4 @@ struct PlayerShopView: View {
             .joined(separator: "|")
     }
 }
+

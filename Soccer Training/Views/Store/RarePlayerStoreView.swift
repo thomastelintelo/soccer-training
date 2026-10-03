@@ -42,7 +42,7 @@ struct RarePlayerStoreView: View {
         List {
             Section {
                 VStack(alignment: .leading, spacing: 16) {
-                    Label("FUTBOL TRAINNIER PLUS", systemImage: "crown.fill")
+                    Label("FUTBOL ELITE PLUS", systemImage: "crown.fill")
                         .font(.largeTitle)
                         .fontWeight(.heavy)
                         .foregroundStyle(Color.soccerGold)

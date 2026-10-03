@@ -8,11 +8,23 @@ struct AllDrillsView: View {
     let topics: [Topic]
     @Binding var totalPoints: Int
     @AppStorage("isProMember") private var isProMember = false
+    @State private var searchText = ""
 
     private let columns = [
         GridItem(.flexible(), spacing: 14),
         GridItem(.flexible(), spacing: 14),
     ]
+
+    private var filteredTopics: [Topic] {
+        guard !searchText.isEmpty else { return topics }
+        return topics.compactMap { topic in
+            let matches = topic.drills.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+            guard topic.name.localizedCaseInsensitiveContains(searchText) || !matches.isEmpty else {
+                return nil
+            }
+            return topic
+        }
+    }
 
     var body: some View {
         ZStack {
@@ -30,8 +42,15 @@ struct AllDrillsView: View {
                         totalPoints: totalPoints
                     )
 
+                    if !searchText.isEmpty && filteredTopics.isEmpty {
+                        Text("No drills match “\(searchText)”.")
+                            .font(.subheadline)
+                            .foregroundStyle(Color.soccerCream.opacity(0.7))
+                            .padding(.top, 20)
+                    }
+
                     LazyVGrid(columns: columns, spacing: 14) {
-                        ForEach(topics) { topic in
+                        ForEach(filteredTopics) { topic in
                             if topic.name == "Plus Training" && !isProMember {
                                 DrillCategoryCard(
                                     name: topic.name,
@@ -47,7 +66,7 @@ struct AllDrillsView: View {
                                         .background(Color.soccerLime, in: Capsule())
                                         .padding(8)
                                 }
-                                .accessibilityLabel("Plus Training locked. Subscribe to Futbol Trainnier Plus in the shop.")
+                                .accessibilityLabel("Plus Training locked. Subscribe to Futbol Elite Plus in the shop.")
                             } else {
                                 NavigationLink {
                                     DrillListView(
@@ -70,8 +89,9 @@ struct AllDrillsView: View {
             }
         }
         .foregroundStyle(Color.soccerCream)
-        .navigationTitle("Plus Training Center")
+        .navigationTitle("Training Center")
         .navigationBarTitleDisplayMode(.inline)
+        .searchable(text: $searchText, prompt: "Search drills or categories")
     }
 }
 
@@ -127,15 +147,7 @@ private struct DrillCategoryCard: View {
     let drillCount: Int
 
     private var icon: String {
-        switch name {
-        case "Shooting": "scope"
-        case "Dribbling": "figure.soccer"
-        case "Passing": "arrow.left.arrow.right"
-        case "Control": "circle.grid.cross.fill"
-        case "Goalkeeping": "hand.raised.fill"
-        case "Defense": "shield.fill"
-        default: "figure.run"
-        }
+        DrillPresentation.icon(for: name)
     }
 
     var body: some View {
@@ -144,6 +156,15 @@ private struct DrillCategoryCard: View {
                 .resizable()
                 .scaledToFit()
                 .frame(maxWidth: .infinity)
+                .overlay {
+                    // Several categories share the same handful of stock
+                    // photos, so tint each category's shared photo with its
+                    // own stable hue — the same trick used for individual
+                    // drills — so no two category cards look identical.
+                    Color(hue: DrillPresentation.photoHue(for: name), saturation: 0.55, brightness: 0.9)
+                        .opacity(0.35)
+                        .blendMode(.hue)
+                }
 
             LinearGradient(
                 colors: [.clear, Color.soccerNavy.opacity(0.95)],
