@@ -35,8 +35,13 @@ struct DrillListView: View {
     /// Advanced — a fixed global time threshold left most categories with
     /// nearly everything in one bucket, making the filter look broken.
     private var difficultyByDrillName: [String: String] {
+        // Many drills share a duration; break ties with a stable per-name
+        // value so they spread across buckets instead of clumping together.
         let sortedByDuration = drills.sorted {
-            DrillTimerView.duration(for: $0.name) < DrillTimerView.duration(for: $1.name)
+            let lhs = DrillTimerView.duration(for: $0.name)
+            let rhs = DrillTimerView.duration(for: $1.name)
+            if lhs != rhs { return lhs < rhs }
+            return DrillPresentation.photoHue(for: $0.name) < DrillPresentation.photoHue(for: $1.name)
         }
         let count = sortedByDuration.count
         guard count > 0 else { return [:] }
@@ -88,7 +93,7 @@ struct DrillListView: View {
             HStack(spacing: 4) {
                 ForEach(difficulties, id: \.self) { difficulty in
                     Button {
-                        difficultyFilter = difficulty
+                        withAnimation(.snappy) { difficultyFilter = difficulty }
                     } label: {
                         Text(difficulty)
                             .font(.caption)
@@ -130,7 +135,8 @@ struct DrillListView: View {
     }
 
     var body: some View {
-        ScrollView {
+        let byName = difficultyByDrillName
+        return ScrollView {
             filterBar
 
             LazyVStack(spacing: 16) {
