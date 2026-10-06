@@ -1,5 +1,6 @@
 // HomeDashboardView.swift
-// The Home tab: today's training plan, daily challenge, and quick stats.
+// The Home tab: today's recommended training, continue training, streak and weekly
+// goal, favorites, daily challenges, and the weekly plan.
 
 import SwiftUI
 
@@ -17,6 +18,53 @@ struct HomeDashboardView: View {
     @AppStorage("trainingStreak") private var trainingStreak = 0
     @AppStorage("lastTrainingDate") private var lastTrainingDate = ""
     @State private var hasAppeared = false
+    @AppStorage(FavoriteDrills.storageKey) private var favoritesText = ""
+    @AppStorage(TrainingLog.versionKey) private var logVersion = 0
+    @AppStorage(PlayerPrefKey.revision) private var preferencesRevision = 0
+    @AppStorage(ActiveSessionStore.storageKey) private var activeSessionJSON = ""
+    @State private var isShowingCoach = false
+
+    private var preferences: PlayerPreferences {
+        PlayerPreferences.load()
+    }
+
+    private var history: [TrainingEntry] {
+        TrainingLog.entries()
+    }
+
+    private var favorites: Set<String> {
+        FavoriteDrills.set(from: favoritesText)
+    }
+
+    /// Today's session is built from the player's preferences and history. It
+    /// shifts as they train, since drills they just finished rank lower.
+    private var todayPlan: CoachPlan {
+        CoachPlanner.plan(
+            for: CoachPlanner.defaultRequest(for: preferences),
+            history: history,
+            favorites: favorites
+        )
+    }
+
+    private var weekTrainingDays: Int {
+        TrainingLog.trainedDays(TrainingLog.thisWeek(history)).count
+    }
+
+    private var greeting: String {
+        switch Calendar.current.component(.hour, from: Date()) {
+        case 5..<12: "Good morning"
+        case 12..<17: "Good afternoon"
+        default: "Good evening"
+        }
+    }
+
+    private var favoriteDrills: [DrillInfo] {
+        DrillCatalog.library.filter { favorites.contains($0.name) }
+    }
+
+    private var activeSession: ActiveSession? {
+        ActiveSessionStore.load()
+    }
 
     private var trainedToday: Bool {
         let formatter = DateFormatter()
@@ -165,93 +213,20 @@ struct HomeDashboardView: View {
 
             ScrollView {
                 VStack(spacing: 20) {
-                    VStack(alignment: .leading, spacing: 14) {
-                        HStack {
-                            Label("PRO TRAINING", systemImage: "figure.soccer")
-                                .font(.headline)
-                                .fontWeight(.heavy)
-                                .foregroundStyle(.white)
+                    greetingHeader
 
-                            Spacer()
+                    todayCard
 
-                            Text("NEW")
-                                .font(.caption)
-                                .fontWeight(.black)
-                                .foregroundStyle(Color.soccerAccent)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 6)
-                                .background(.white, in: Capsule())
-                        }
-
-                        Text("Train with purpose.")
-                            .font(.system(size: 32, weight: .heavy, design: .rounded))
-                            .foregroundStyle(.white)
-
-                        Text("Longer sessions, coaching tips, equipment lists, and bigger rewards are ready in the Drills tab.")
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
-                            .foregroundStyle(.white.opacity(0.85))
-
-                        HStack(spacing: 10) {
-                            Label("\(totalTrainingMinutes) min trained", systemImage: "timer")
-                            Label("More points", systemImage: "star.fill")
-                        }
-                        .font(.caption)
-                        .fontWeight(.bold)
-                        .foregroundStyle(.white)
+                    if let session = activeSession {
+                        continueCard(for: session)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(20)
-                    .background(
-                        LinearGradient(
-                            colors: [Color.soccerAccentLight, Color.soccerAccent],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        in: RoundedRectangle(cornerRadius: 24)
-                    )
 
-                    Text("Points: \(totalPoints)")
-                        .font(.title)
-                        .fontWeight(.bold)
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 10)
-                        .background(Color.soccerAccent)
-                        .clipShape(.capsule)
-
-                    Text("Welcome, \(username)!")
-                        .font(.largeTitle)
-                        .fontWeight(.heavy)
-                        .multilineTextAlignment(.center)
-
-                    Text("\(position) • Best at \(bestSkill)")
-                        .font(.headline)
-                        .foregroundStyle(Color.soccerText.opacity(0.7))
-
-                    HStack(spacing: 10) {
-                        Image(systemName: "flame.fill")
-                            .font(.title2)
-                            .foregroundStyle(isStreakAtRisk ? Color.gray : Color.orange)
-                            .symbolEffect(.bounce, value: trainingStreak)
-
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(trainingStreak > 0 ? "\(trainingStreak)-day streak" : "Start your streak today")
-                                .font(.headline)
-                                .fontWeight(.bold)
-                            Text(isStreakAtRisk ? "Train today to keep it alive" : "Train daily to keep it growing")
-                                .font(.caption)
-                                .foregroundStyle(Color.soccerText.opacity(0.6))
-                        }
-
-                        Spacer()
+                    HStack(spacing: 12) {
+                        streakCard
+                        weekCard
                     }
-                    .padding(12)
-                    .background(Color.soccerSurface, in: RoundedRectangle(cornerRadius: 14))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 14)
-                            .stroke(isStreakAtRisk ? Color.orange.opacity(0.6) : Color.clear, lineWidth: 2)
-                    }
+
+                    favoritesSection
 
                     HStack(spacing: 12) {
                         dashboardStat(
@@ -448,9 +423,211 @@ struct HomeDashboardView: View {
         .foregroundStyle(Color.soccerText)
         .navigationTitle("Home")
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $isShowingCoach) {
+            CoachView(totalPoints: $totalPoints)
+        }
         .onAppear {
             resetWeeklyProgressIfNeeded()
             hasAppeared = true
+        }
+    }
+
+    private var greetingHeader: some View {
+        let prefs = preferences
+        var details = [prefs.position.isEmpty ? nil : prefs.position, prefs.level.rawValue].compactMap { $0 }
+        details.append("\(prefs.trainingMinutes) min sessions")
+
+        return VStack(alignment: .leading, spacing: 4) {
+            Text(greeting)
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .foregroundStyle(Color.soccerText.opacity(0.6))
+            Text(username.isEmpty ? "Ready to train?" : username)
+                .font(.system(size: 34, weight: .heavy, design: .rounded))
+            Text(details.joined(separator: " • "))
+                .font(.subheadline)
+                .foregroundStyle(Color.soccerText.opacity(0.65))
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var todayCard: some View {
+        let plan = todayPlan
+        return VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Label("TODAY'S TRAINING", systemImage: "sun.max.fill")
+                    .font(.caption)
+                    .fontWeight(.black)
+                Spacer()
+                Text("\(plan.totalMinutes) min")
+                    .font(.caption)
+                    .fontWeight(.black)
+            }
+            .foregroundStyle(.white.opacity(0.9))
+
+            Text(plan.title)
+                .font(.system(size: 28, weight: .heavy, design: .rounded))
+                .foregroundStyle(.white)
+
+            Text(plan.drills.map(\.name).joined(separator: " · "))
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .foregroundStyle(.white.opacity(0.9))
+                .lineLimit(2)
+
+            HStack(spacing: 10) {
+                NavigationLink {
+                    SessionRunnerView(session: plan.session, totalPoints: $totalPoints)
+                } label: {
+                    Label("Start Training", systemImage: "play.fill")
+                        .font(.headline)
+                        .fontWeight(.bold)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(.white, in: RoundedRectangle(cornerRadius: 14))
+                        .foregroundStyle(Color.soccerAccent)
+                }
+
+                Button {
+                    Haptics.tap()
+                    isShowingCoach = true
+                } label: {
+                    Label("Customize", systemImage: "sparkles")
+                        .font(.subheadline)
+                        .fontWeight(.bold)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 14)
+                        .background(.white.opacity(0.2), in: RoundedRectangle(cornerRadius: 14))
+                        .foregroundStyle(.white)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            LinearGradient(
+                colors: [Color.soccerAccentLight, Color.soccerAccent],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            in: RoundedRectangle(cornerRadius: 24)
+        )
+        .shadow(color: Color.soccerAccent.opacity(0.25), radius: 12, y: 6)
+    }
+
+    private func continueCard(for session: ActiveSession) -> some View {
+        NavigationLink {
+            SessionRunnerView(session: session, totalPoints: $totalPoints)
+        } label: {
+            HStack(spacing: 14) {
+                ZStack {
+                    ProgressRing(progress: session.progress, lineWidth: 6)
+                    Text("\(session.completedCount)/\(session.steps.count)")
+                        .font(.caption2)
+                        .fontWeight(.black)
+                }
+                .frame(width: 46, height: 46)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Continue Training")
+                        .font(.headline)
+                        .fontWeight(.heavy)
+                    Text(session.title)
+                        .font(.subheadline)
+                        .foregroundStyle(Color.soccerText.opacity(0.65))
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right.circle.fill")
+                    .font(.title2)
+                    .foregroundStyle(Color.soccerAccent)
+            }
+            .foregroundStyle(Color.soccerText)
+            .padding(16)
+            .background(Color.soccerSurface, in: RoundedRectangle(cornerRadius: 18))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var streakCard: some View {
+        let streak = TrainingStreak.current(stored: trainingStreak, lastDay: lastTrainingDate)
+        return VStack(alignment: .leading, spacing: 8) {
+            Image(systemName: "flame.fill")
+                .font(.title2)
+                .foregroundStyle(streak > 0 ? Color.orange : Color.gray)
+                .symbolEffect(.bounce, value: trainingStreak)
+            Text(streak > 0 ? "\(streak)-day streak" : "Start a streak")
+                .font(.headline)
+                .fontWeight(.bold)
+            Text(isStreakAtRisk ? "Train today to keep it going" : "Train daily to grow it")
+                .font(.caption)
+                .foregroundStyle(Color.soccerText.opacity(0.6))
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(Color.soccerSurface, in: RoundedRectangle(cornerRadius: 18))
+        .overlay {
+            RoundedRectangle(cornerRadius: 18)
+                .stroke(isStreakAtRisk && streak > 0 ? Color.orange.opacity(0.6) : Color.clear, lineWidth: 2)
+        }
+    }
+
+    private var weekCard: some View {
+        let target = max(preferences.trainingDays, 1)
+        return VStack(alignment: .leading, spacing: 8) {
+            ZStack {
+                ProgressRing(progress: Double(weekTrainingDays) / Double(target), lineWidth: 6)
+                Text("\(weekTrainingDays)/\(target)")
+                    .font(.caption)
+                    .fontWeight(.black)
+            }
+            .frame(width: 44, height: 44)
+            Text("This week")
+                .font(.headline)
+                .fontWeight(.bold)
+            Text("\(weekTrainingDays) of \(target) planned days")
+                .font(.caption)
+                .foregroundStyle(Color.soccerText.opacity(0.6))
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(Color.soccerSurface, in: RoundedRectangle(cornerRadius: 18))
+    }
+
+    private var favoritesSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SectionHeader(
+                title: "Favorites",
+                subtitle: favoriteDrills.isEmpty
+                    ? "Tap the heart on any drill to keep it one tap away."
+                    : "Your saved drills, one tap away."
+            )
+
+            if !favoriteDrills.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(favoriteDrills) { info in
+                            ZStack(alignment: .topTrailing) {
+                                NavigationLink {
+                                    DrillDetailView(drillName: info.name, totalPoints: $totalPoints)
+                                } label: {
+                                    DrillCardView(info: info)
+                                        .frame(width: 168)
+                                }
+                                .buttonStyle(.plain)
+
+                                FavoriteButton(isFavorite: true) {
+                                    favoritesText = FavoriteDrills.toggled(info.name, in: favoritesText)
+                                }
+                                .padding(8)
+                            }
+                        }
+                    }
+                    .padding(.vertical, 2)
+                }
+            }
         }
     }
 

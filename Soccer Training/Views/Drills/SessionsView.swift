@@ -1,6 +1,6 @@
 // SessionsView.swift
-// The Sessions tab: jump straight into a guided warm-up → drills → cool-down
-// session for any category, without browsing the full drill list first.
+// The Train tab: the AI coach, a session you can resume, and guided sessions for
+// each category, so you can jump straight into a warm-up → drills → cool-down.
 // Each category offers a Mixed Session (randomized) plus several hand-picked
 // themed sessions, so there's more than one way to train the same skill.
 
@@ -9,6 +9,8 @@ import SwiftUI
 struct SessionsView: View {
     let topics: [Topic]
     @Binding var totalPoints: Int
+    @AppStorage(ActiveSessionStore.storageKey) private var activeSessionJSON = ""
+    @State private var isShowingCoach = false
 
     private let columns = [
         GridItem(.flexible(), spacing: 14),
@@ -22,6 +24,12 @@ struct SessionsView: View {
 
             ScrollView {
                 VStack(spacing: 22) {
+                    if let session = ActiveSessionStore.load() {
+                        continueCard(for: session)
+                    }
+
+                    coachCard
+
                     header
 
                     LazyVGrid(columns: columns, spacing: 14) {
@@ -39,8 +47,81 @@ struct SessionsView: View {
             }
         }
         .foregroundStyle(Color.soccerText)
-        .navigationTitle("Sessions")
+        .navigationTitle("Train")
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $isShowingCoach) {
+            CoachView(totalPoints: $totalPoints)
+        }
+    }
+
+    private var coachCard: some View {
+        Button {
+            Haptics.tap()
+            isShowingCoach = true
+        } label: {
+            HStack(spacing: 14) {
+                Image(systemName: "sparkles")
+                    .font(.title2)
+                    .foregroundStyle(Color.soccerAccent)
+                    .frame(width: 52, height: 52)
+                    .background(.white, in: Circle())
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("AI Coach")
+                        .font(.title3)
+                        .fontWeight(.heavy)
+                    Text("Tell me your age, time, and gear. I'll build the session.")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.9))
+                        .multilineTextAlignment(.leading)
+                }
+                .foregroundStyle(.white)
+
+                Spacer(minLength: 0)
+
+                Image(systemName: "chevron.right.circle.fill")
+                    .font(.title2)
+                    .foregroundStyle(.white)
+            }
+            .padding(18)
+            .background(
+                LinearGradient(
+                    colors: [Color.soccerAccent, Color.soccerAccentLight],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ),
+                in: RoundedRectangle(cornerRadius: 22)
+            )
+            .shadow(color: Color.soccerAccent.opacity(0.25), radius: 10, y: 5)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func continueCard(for session: ActiveSession) -> some View {
+        NavigationLink {
+            SessionRunnerView(session: session, totalPoints: $totalPoints)
+        } label: {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Label("Continue training", systemImage: "arrow.clockwise.circle.fill")
+                        .font(.headline)
+                        .fontWeight(.heavy)
+                    Spacer()
+                    Text("\(session.completedCount) of \(session.steps.count)")
+                        .font(.caption)
+                        .fontWeight(.bold)
+                }
+                Text(session.title)
+                    .font(.title3)
+                    .fontWeight(.bold)
+                LinearProgressBar(fraction: session.progress, tint: .white)
+            }
+            .foregroundStyle(.white)
+            .padding(18)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.soccerText, in: RoundedRectangle(cornerRadius: 22))
+        }
+        .buttonStyle(.plain)
     }
 
     private var header: some View {

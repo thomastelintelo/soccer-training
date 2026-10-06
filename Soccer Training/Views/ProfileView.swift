@@ -21,6 +21,7 @@ struct ProfileView: View {
     @AppStorage("totalDribblingAttempts") private var totalDribblingAttempts = 0
     @AppStorage("totalControls") private var totalControls = 0
     @AppStorage("totalSessions") private var totalSessions = 0
+    @AppStorage("sessionsCompleted") private var sessionsCompleted = 0
     @AppStorage("trainingStreak") private var trainingStreak = 0
     @AppStorage("rewardBoxes") private var rewardBoxes = 0
     @AppStorage("rewardBoxFixVersion") private var rewardBoxFixVersion = 0
@@ -58,20 +59,15 @@ struct ProfileView: View {
     private var progress: Double { playerProgress.progressToNextLevel }
 
     private var achievements: [Achievement] {
-        [
-            Achievement(title: "First Goal", detail: "Score your first training goal", systemImage: "soccerball", isUnlocked: totalGoals >= 1),
-            Achievement(title: "Goal Getter", detail: "Score 50 training goals", systemImage: "scope", isUnlocked: totalGoals >= 50),
-            Achievement(title: "Getting Started", detail: "Complete 5 sessions", systemImage: "figure.run", isUnlocked: totalSessions >= 5),
-            Achievement(title: "Dedicated", detail: "Complete 25 sessions", systemImage: "figure.run.circle.fill", isUnlocked: totalSessions >= 25),
-            Achievement(title: "On a Roll", detail: "Reach a 3-day streak", systemImage: "flame.fill", isUnlocked: trainingStreak >= 3),
-            Achievement(title: "Unstoppable", detail: "Reach a 7-day streak", systemImage: "flame.circle.fill", isUnlocked: trainingStreak >= 7),
-            Achievement(title: "Month Strong", detail: "Reach a 30-day streak", systemImage: "calendar.badge.clock", isUnlocked: trainingStreak >= 30),
-            Achievement(title: "Point Collector", detail: "Hold 1,000 points", systemImage: "star.fill", isUnlocked: totalPoints >= 1_000),
-            Achievement(title: "High Roller", detail: "Hold 10,000 points", systemImage: "star.circle.fill", isUnlocked: totalPoints >= 10_000),
-            Achievement(title: "Level Five", detail: "Reach level 5", systemImage: "trophy.fill", isUnlocked: level >= 5),
-            Achievement(title: "Elite Trainer", detail: "Reach level 15", systemImage: "crown.fill", isUnlocked: level >= 15),
-            Achievement(title: "Game Intelligence", detail: "Earn 200 Soccer IQ XP", systemImage: "brain.head.profile", isUnlocked: categoryProgress.xp(for: "Soccer IQ") >= 200),
-        ]
+        Achievement.catalog(
+            totalGoals: totalGoals,
+            totalSessions: totalSessions,
+            sessionsCompleted: sessionsCompleted,
+            trainingStreak: trainingStreak,
+            totalPoints: totalPoints,
+            level: level,
+            soccerIQXP: categoryProgress.xp(for: "Soccer IQ")
+        )
     }
 
     private var categoryProgress: CategoryProgress {
@@ -423,6 +419,19 @@ struct ProfileView: View {
                 .background(Color.soccerSurface)
                 .clipShape(.rect(cornerRadius: 16))
                 #endif
+
+                NavigationLink {
+                    PreferencesView()
+                } label: {
+                    Label("Training Preferences", systemImage: "slider.horizontal.3")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.soccerSurface)
+                        .foregroundStyle(Color.soccerText)
+                        .clipShape(.rect(cornerRadius: 14))
+                }
 
                 NavigationLink {
                     LeaderboardsView(username: username, totalPoints: totalPoints)

@@ -4,10 +4,18 @@
 
 import SwiftUI
 
+private enum DrillsMode: String, CaseIterable, Identifiable {
+    case library = "Library"
+    case categories = "Categories"
+
+    var id: String { rawValue }
+}
+
 struct AllDrillsView: View {
     let topics: [Topic]
     @Binding var totalPoints: Int
     @State private var searchText = ""
+    @State private var mode: DrillsMode = .library
 
     private let columns = [
         GridItem(.flexible(), spacing: 14),
@@ -26,6 +34,31 @@ struct AllDrillsView: View {
     }
 
     var body: some View {
+        Group {
+            if mode == .library {
+                DrillLibraryView(totalPoints: $totalPoints)
+            } else {
+                categoriesContent
+                    .searchable(text: $searchText, prompt: "Search drills or categories")
+            }
+        }
+        .safeAreaInset(edge: .top) {
+            Picker("View", selection: $mode) {
+                ForEach(DrillsMode.allCases) { option in
+                    Text(option.rawValue).tag(option)
+                }
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+            .background(Color.soccerBackground)
+        }
+        .foregroundStyle(Color.soccerText)
+        .navigationTitle("Training Center")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private var categoriesContent: some View {
         ZStack {
             Color.soccerBackground
                 .ignoresSafeArea()
@@ -65,10 +98,6 @@ struct AllDrillsView: View {
                 .padding()
             }
         }
-        .foregroundStyle(Color.soccerText)
-        .navigationTitle("Training Center")
-        .navigationBarTitleDisplayMode(.inline)
-        .searchable(text: $searchText, prompt: "Search drills or categories")
     }
 }
 

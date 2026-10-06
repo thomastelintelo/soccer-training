@@ -49,38 +49,6 @@ private struct ConfettiMotion: ViewModifier {
     }
 }
 
-private struct PlayerCreateHeroHeader: View {
-    @State private var animate = false
-    var body: some View {
-        ZStack {
-            LinearGradient(
-                colors: [Color.soccerAccent, Color.soccerAccentLight],
-                startPoint: animate ? .topLeading : .bottomTrailing,
-                endPoint: animate ? .bottomTrailing : .topLeading
-            )
-            .animation(.easeInOut(duration: 3).repeatForever(autoreverses: true), value: animate)
-
-            VStack(spacing: 8) {
-                Image(systemName: "figure.soccer")
-                    .font(.system(size: 56))
-                    .foregroundStyle(.white)
-                    .symbolEffect(.bounce, options: .repeating, value: animate)
-                Text("Create Your Player")
-                    .font(.largeTitle).bold()
-                    .foregroundStyle(.white)
-                Text("Kick off your journey")
-                    .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.9))
-            }
-            .padding(.vertical, 16)
-        }
-        .frame(height: 180)
-        .clipShape(.rect(cornerRadius: 22))
-        .shadow(color: .black.opacity(0.2), radius: 14, y: 8)
-        .onAppear { animate = true }
-    }
-}
-
 struct LaunchContainerView: View {
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var hasStarted = false
@@ -94,7 +62,7 @@ struct LaunchContainerView: View {
                 if hasCompletedOnboarding {
                     ContentView()
                 } else if hasSeenBenefits {
-                    PlayerSignInView(isSignedIn: $hasCompletedOnboarding)
+                    OnboardingFlowView(isSignedIn: $hasCompletedOnboarding)
                 } else {
                     AppBenefitsView {
                         withAnimation(.easeOut(duration: 0.35)) {
@@ -121,7 +89,7 @@ private struct AppBenefitsView: View {
     let onContinue: () -> Void
 
     private let benefits: [(icon: String, title: String, detail: String)] = [
-        ("list.bullet.clipboard.fill", "150+ Training Drills", "Shooting, dribbling, passing, goalkeeping, and a lot more — for every position."),
+        ("list.bullet.clipboard.fill", "184 Training Drills", "Shooting, dribbling, passing, goalkeeping, and a lot more — for every position."),
         ("checkmark.seal.fill", "Free to Play", "No account needed, and nothing to pay. A few optional extras are in there if you ever want them."),
         ("star.fill", "Earn Points, Build Your Team", "Complete drills to earn points, then sign real players and build your Starting 11."),
         ("calendar.badge.checkmark", "Daily Challenges", "Fresh challenges every day keep training fun and rewarding."),
@@ -241,139 +209,6 @@ private struct WelcomeStartView: View {
                 .padding(.top, 14)
                 .padding(.horizontal, 28)
                 .padding(.bottom, 54)
-            }
-        }
-    }
-}
-
-struct PlayerSignInView: View {
-    @Binding var isSignedIn: Bool
-    @AppStorage("playerUsername") private var savedUsername = ""
-    @AppStorage("playerPosition") private var savedPosition = ""
-    @AppStorage("playerBestSkill") private var savedBestSkill = ""
-
-    @State private var username = ""
-    @State private var position = ""
-    @State private var bestSkill = ""
-    @State private var showConfetti = false
-
-    private let positions = [
-        "Goalkeeper",
-        "Defender",
-        "Midfielder",
-        "Winger",
-        "Striker",
-    ]
-
-    private let skills = [
-        "Control",
-        "Passing",
-        "Shooting",
-        "Dribbling",
-    ]
-
-    private var canSignIn: Bool {
-        !username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            && !position.isEmpty
-            && !bestSkill.isEmpty
-    }
-
-    var body: some View {
-        ZStack {
-            Color.soccerBackground
-                .ignoresSafeArea()
-
-            ScrollView {
-                VStack(spacing: 24) {
-                    PlayerCreateHeroHeader()
-
-                    Image(systemName: "figure.soccer")
-                        .font(.system(size: 72))
-                        .foregroundStyle(Color.soccerAccent)
-
-                    Text("Create Your Player")
-                        .font(.largeTitle)
-                        .fontWeight(.heavy)
-
-                    TextField("Username", text: $username)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .padding()
-                        .background(Color.soccerSurface)
-                        .clipShape(.rect(cornerRadius: 12))
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("What position do you play?")
-                            .font(.headline)
-
-                        Picker("Position", selection: $position) {
-                            Text("Select a position").tag("")
-                            ForEach(positions, id: \.self) { position in
-                                Text(position).tag(position)
-                            }
-                        }
-                        .pickerStyle(.menu)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding()
-                        .background(Color.soccerSurface)
-                        .clipShape(.rect(cornerRadius: 12))
-                    }
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("What are you best at?")
-                            .font(.headline)
-
-                        Picker("Best skill", selection: $bestSkill) {
-                            Text("Select your best skill").tag("")
-                            ForEach(skills, id: \.self) { skill in
-                                Text(skill).tag(skill)
-                            }
-                        }
-                        .pickerStyle(.menu)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding()
-                        .background(Color.soccerSurface)
-                        .clipShape(.rect(cornerRadius: 12))
-                    }
-
-                    Button {
-                        let trimmed = username.trimmingCharacters(in: .whitespacesAndNewlines)
-                        guard !trimmed.isEmpty, !position.isEmpty, !bestSkill.isEmpty else {
-                            Haptics.soft()
-                            return
-                        }
-                        Haptics.success()
-                        savedUsername = trimmed
-                        savedPosition = position
-                        savedBestSkill = bestSkill
-                        isSignedIn = true
-                        withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
-                            showConfetti = true
-                        }
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.1) {
-                            showConfetti = false
-                        }
-                    } label: {
-                        Label("Sign In", systemImage: "sparkles")
-                            .font(.title2)
-                            .fontWeight(.bold)
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(canSignIn ? Color.soccerAccent : Color.gray)
-                            .foregroundStyle(.white)
-                            .clipShape(.rect(cornerRadius: 14))
-                    }
-                    .disabled(!canSignIn)
-
-                }
-                .padding(24)
-            }
-        }
-        .foregroundStyle(Color.soccerText)
-        .overlay(alignment: .top) {
-            if showConfetti {
-                ConfettiView()
-                    .transition(.opacity)
             }
         }
     }

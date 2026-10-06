@@ -14,6 +14,8 @@ struct DrillTimerView: View {
     let drill: Drill
     let weeklyTaskID: String?
     let weeklyDay: String?
+    /// Called once the drill's result is recorded. Session runners use it to advance.
+    var onCompleted: (() -> Void)? = nil
     @Binding var totalPoints: Int
     @AppStorage("completedWeeklyTasks") private var completedWeeklyTasks = ""
     @AppStorage("completedWeeklyDays") private var completedWeeklyDays = ""
@@ -61,11 +63,13 @@ struct DrillTimerView: View {
         drill: Drill,
         totalPoints: Binding<Int>,
         weeklyTaskID: String? = nil,
-        weeklyDay: String? = nil
+        weeklyDay: String? = nil,
+        onCompleted: (() -> Void)? = nil
     ) {
         self.drill = drill
         self.weeklyTaskID = weeklyTaskID
         self.weeklyDay = weeklyDay
+        self.onCompleted = onCompleted
         _totalPoints = totalPoints
         _timeLeft = State(initialValue: Self.duration(for: drill.name))
     }
@@ -336,22 +340,26 @@ struct DrillTimerView: View {
         showThankYou
     }
 
-    private var passAndTurnInstructions: LocalizedStringResource {
-        "Stand at your starting point facing away from the wall. Take 5 steps to your left and place Cone 1. Return to the starting point, take 7 steps straight ahead, and place Cone 2. Return again, take 5 steps to your right, and place Cone 3. Stand near a wall with the ball. Press Start and pass the ball firmly against the wall. As the ball returns, listen for the spoken cone number. Receive the ball, turn quickly toward that cone, and dribble to it using small, controlled touches. Return to the starting point and get ready for the next call. Complete all 10 calls to finish the drill and earn points. Choose a difficulty that gives you enough time to return before the next call."
-    }
+    static let passAndTurnText: String = "Stand at your starting point facing away from the wall. Take 5 steps to your left and place Cone 1. Return to the starting point, take 7 steps straight ahead, and place Cone 2. Return again, take 5 steps to your right, and place Cone 3. Stand near a wall with the ball. Press Start and pass the ball firmly against the wall. As the ball returns, listen for the spoken cone number. Receive the ball, turn quickly toward that cone, and dribble to it using small, controlled touches. Return to the starting point and get ready for the next call. Complete all 10 calls to finish the drill and earn points. Choose a difficulty that gives you enough time to return before the next call."
 
-    private var sessionInstructions: String {
-        let minutes = drillDuration / 60
+    /// The written instructions for a drill. Shared by the timer screen and the drill
+    /// detail page, so both always describe the drill the same way.
+    static func instructions(forDrill name: String, minutes: Int) -> String {
+        if name == "Pass and Turn" {
+            return passAndTurnText
+        }
+        let category = DrillPresentation.category(for: name)
+        let isUntimed = ["Shooting", "Control", "Passing", "Dribbling"].contains(category)
         // Untimed drills (shooting, control, passing, dribbling) don't run a
         // visible countdown — Done just unlocks after this many minutes. Say
         // so explicitly, instead of implying the drill ends exactly at N
         // minutes, so finishing your reps early doesn't read as a bug when
         // Done is still locked.
-        let opening = isUntimedDrill
-            ? "Complete the \(drill.name) drill. You can mark it done after \(minutes) minutes, so use that time for as many quality repetitions as you can."
-            : "Complete the \(drill.name) drill for \(minutes) minutes. Do as many quality repetitions as you can before time ends."
+        let opening = isUntimed
+            ? "Complete the \(name) drill. You can mark it done after \(minutes) minutes, so use that time for as many quality repetitions as you can."
+            : "Complete the \(name) drill for \(minutes) minutes. Do as many quality repetitions as you can before time ends."
 
-        switch drill.name {
+        switch name {
         case "Ball Mastery":
             return "\(opening) Rotate through toe taps, sole rolls, inside-outside touches, and pullbacks. Keep the ball close and avoid breakable objects."
         case "Toe Tap Challenge":
@@ -952,7 +960,7 @@ struct DrillTimerView: View {
             break
         }
 
-        switch drillCategory {
+        switch category {
         case "Shooting":
             return "\(opening) Alternate feet when possible, choose a target before each shot, and focus on accuracy before power."
         case "Dribbling":
@@ -978,6 +986,10 @@ struct DrillTimerView: View {
         default:
             return "\(opening) Use good form, rest briefly when needed, drink water, and stop if you feel pain."
         }
+    }
+
+    private var sessionInstructions: String {
+        Self.instructions(forDrill: drill.name, minutes: drillDuration / 60)
     }
 
     var body: some View {
@@ -1083,7 +1095,7 @@ struct DrillTimerView: View {
                 .foregroundStyle(Color.soccerAccent)
 
             if isPassAndTurnDrill {
-                Text(passAndTurnInstructions)
+                Text(Self.passAndTurnText)
                     .font(.title2)
                     .fontWeight(.semibold)
                     .multilineTextAlignment(.center)
@@ -1599,6 +1611,9 @@ struct DrillTimerView: View {
         if levelsGained > 0 {
             rewardBoxes += levelsGained
         }
+
+        TrainingLog.record(drillName: drill.name, skill: drillCategory, minutes: minutesTrained, xp: xpAward)
+        onCompleted?()
     }
 
     private func updateTrainingStreak() {

@@ -30,32 +30,9 @@ struct DrillListView: View {
     /// category has a real, visible spread across Beginner/Intermediate/
     /// Advanced — a fixed global time threshold left most categories with
     /// nearly everything in one bucket, making the filter look broken.
+    /// Difficulty comes from DrillCatalog, so this list and the library always agree.
     private var difficultyByDrillName: [String: String] {
-        // Most drills share the same fallback duration, so sorting by
-        // duration alone left ties decided by declaration order — every
-        // "default" drill from the same part of the list landed in the same
-        // bucket. Breaking ties with a stable per-name hash spreads them out.
-        let sortedByDuration = drills.sorted {
-            let lhs = DrillTimerView.duration(for: $0.name)
-            let rhs = DrillTimerView.duration(for: $1.name)
-            if lhs != rhs { return lhs < rhs }
-            return StableHash.value($0.name) < StableHash.value($1.name)
-        }
-        let count = sortedByDuration.count
-        guard count > 0 else { return [:] }
-
-        var result: [String: String] = [:]
-        for (index, drill) in sortedByDuration.enumerated() {
-            let fraction = Double(index) / Double(count)
-            if fraction < 1.0 / 3.0 {
-                result[drill.name] = "Beginner"
-            } else if fraction < 2.0 / 3.0 {
-                result[drill.name] = "Intermediate"
-            } else {
-                result[drill.name] = "Advanced"
-            }
-        }
-        return result
+        Dictionary(uniqueKeysWithValues: drills.map { ($0.name, DrillCatalog.info(for: $0.name).level.rawValue) })
     }
 
     private var filteredDrills: [Drill] {
@@ -161,7 +138,7 @@ struct DrillListView: View {
 
                 ForEach(filteredDrills) { drill in
                     NavigationLink {
-                        DrillTimerView(drill: drill, totalPoints: $totalPoints)
+                        DrillDetailView(drillName: drill.name, totalPoints: $totalPoints)
                     } label: {
                         VStack(alignment: .leading, spacing: 0) {
                             ZStack(alignment: .bottomLeading) {
