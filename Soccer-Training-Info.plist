@@ -4,8 +4,6 @@
 <dict>
 	<key>CFBundleDisplayName</key>
 	<string>Futbol Elite</string>
-	<key>GADApplicationIdentifier</key>
-	<string>ca-app-pub-3940256099942544~1458002511</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Futbol Elite uses your microphone to record your voice when you make a screen-recording video of the app.</string>
 	<key>NSCameraUsageDescription</key>

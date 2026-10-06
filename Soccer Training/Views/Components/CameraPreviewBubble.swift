@@ -28,7 +28,7 @@ struct CameraPreviewBubble: View {
                 .frame(width: 100, height: 100)
                 .clipShape(.circle)
                 .overlay {
-                    Circle().stroke(Color.soccerLime, lineWidth: 3)
+                    Circle().stroke(Color.soccerAccent, lineWidth: 3)
                 }
                 .shadow(color: .black.opacity(0.4), radius: 8, y: 4)
                 .offset(x: position.width + dragOffset.width, y: position.height + dragOffset.height)

@@ -76,12 +76,12 @@ final class DrillTimerLiveActivity: NSObject {
         }
     }
 
-    /// The app's current team colors, captured as plain RGBA values so the widget
-    /// extension can render the matching theme without reading `favoriteTeam` itself.
+    /// The app's current background theme colors, captured as plain RGBA values
+    /// so the widget extension can render the matching theme on its own.
     private static var currentTheme: DrillTimerTheme {
         DrillTimerTheme(
-            accent: Color.soccerLime.drillTimerComponents,
-            background: Color.soccerNavy.drillTimerComponents,
+            accent: Color.soccerAccent.drillTimerComponents,
+            background: Color.soccerBackground.drillTimerComponents,
             surface: Color.soccerSurface.drillTimerComponents
         )
     }

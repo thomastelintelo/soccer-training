@@ -30,7 +30,6 @@ struct DrillTimerView: View {
     @AppStorage("trainingStreak") private var trainingStreak = 0
     @AppStorage("lastTrainingDate") private var lastTrainingDate = ""
     @AppStorage("rewardBoxes") private var rewardBoxes = 0
-    @AppStorage("isProMember") private var isProMember = false
     @State private var timeLeft: Int
     @State private var timerActive = false
     @State private var timer: Timer?
@@ -128,13 +127,6 @@ struct DrillTimerView: View {
         return minutes * (isWorkout ? 30 : 35) + (isWorkout ? 150 : 0)
     }
 
-    /// Applies the Plus 25% point bonus and rounds to the nearest 5, so members
-    /// see a clean number like "45" instead of a jagged one like "47".
-    static func proAdjustedPoints(base: Int, isProMember: Bool) -> Int {
-        guard isProMember else { return base }
-        return Int((Double(base) * 1.25 / 5).rounded()) * 5
-    }
-
     private var drillDuration: Int {
         let baseSeconds = Double(Self.duration(for: drill.name))
 
@@ -197,11 +189,10 @@ struct DrillTimerView: View {
     private var basePointsAward: Int {
         let timePoints = drillMinutes * (isWorkoutDrill ? 30 : 35)
         let workoutBonus = isWorkoutDrill ? 150 : 0
-        let standardPoints = timePoints
+        return timePoints
             + workoutBonus
             + trainingDifficulty.reward
             + (weeklyTaskID == nil ? 0 : 25)
-        return Self.proAdjustedPoints(base: standardPoints, isProMember: isProMember)
     }
 
     private var pointsAward: Int {
@@ -351,7 +342,14 @@ struct DrillTimerView: View {
 
     private var sessionInstructions: String {
         let minutes = drillDuration / 60
-        let opening = "Complete the \(drill.name) drill for \(minutes) minutes. Do as many quality repetitions as you can before time ends."
+        // Untimed drills (shooting, control, passing, dribbling) don't run a
+        // visible countdown — Done just unlocks after this many minutes. Say
+        // so explicitly, instead of implying the drill ends exactly at N
+        // minutes, so finishing your reps early doesn't read as a bug when
+        // Done is still locked.
+        let opening = isUntimedDrill
+            ? "Complete the \(drill.name) drill. You can mark it done after \(minutes) minutes, so use that time for as many quality repetitions as you can."
+            : "Complete the \(drill.name) drill for \(minutes) minutes. Do as many quality repetitions as you can before time ends."
 
         switch drill.name {
         case "Ball Mastery":
@@ -411,7 +409,7 @@ struct DrillTimerView: View {
         case "Curl Shot Finish":
             return "\(opening) Strike across the ball with the inside of your foot to bend it around an imaginary defender and into the corner."
         case "First Time Finish":
-            return "\(opening) Meet a rolled pass with a first-time strike without taking a touch. Stay balanced and connect cleanly through the ball."
+            return "\(opening) Meet a rolled pass with a firm first-time strike, driving through the center of the ball for power without taking a controlling touch."
         case "Angled Run Finish":
             return "\(opening) Start your run from a wide angle, time your approach to the ball, and finish across your body into the far corner."
         case "Finesse Corner Finish":
@@ -652,6 +650,304 @@ struct DrillTimerView: View {
             return "\(opening) Watch for a heavy touch or a pass played with the receiver's back turned, and the instant you see it, explode into a press. Reset and repeat."
         case "Switch of Play Reading":
             return "\(opening) Practice recognizing when one side of the field is overloaded, then execute a long switching pass to the open side."
+        case "1v1 Goalkeeper":
+            return "\(opening) Make a small goal and work with a partner playing the attacker. Start on your line, move forward under control as they approach, stay tall and balanced, then set your feet just before the shot. Complete 10 rounds and switch roles."
+        case "Angle Positioning":
+            return "\(opening) Set one cone in the goal center and three shooting cones in an arc. Move from the center toward the ball's angle each time, staying on the line between the ball and the center of the goal. Reset after every rep."
+        case "Collapse Dive":
+            return "\(opening) Start on your knees a short step from a partner. Have them roll the ball just out of reach to either side and collapse sideways onto it, leading with your hands and landing softly on your hip, not your elbow."
+        case "Cross Collection":
+            return "\(opening) Work with a partner serving gentle high tosses from the side. Call for the ball, step into its path, take off from one leg, and catch it at the highest safe point before bringing it into your chest."
+        case "Distribution Accuracy":
+            return "\(opening) Set three targets at short, medium, and long range. Practice rolling, throwing, and kicking the ball out to each one, stepping toward the target and following through for accuracy over distance."
+        case "Foot Saves":
+            return "\(opening) Stand in a ready stance and have a partner roll low shots just wide of you. Step across and block with the sole or side of your foot, staying balanced rather than lunging or overreaching."
+        case "Goalkeeper Footwork":
+            return "\(opening) Set four cones in a small square. Stay in your ready position and shuffle around the square with quick, controlled side steps, never crossing your feet. Reset in the center after every lap."
+        case "High Ball Catch":
+            return "\(opening) Have a partner toss the ball above your head from a few steps away. Call for it, take off from one leg, catch it at the highest safe point, and bring it straight into your chest on landing."
+        case "Low Diving Saves":
+            return "\(opening) Work on a soft surface. Start on your knees as a partner gently rolls the ball a step to either side. Push off with your lower hand, reach with both hands, and land on your side to secure it."
+        case "Near Post Saves":
+            return "\(opening) Have a partner shoot firmly at your near post from a tight angle. Stay big, get your body behind the ball where possible, and push wide shots away rather than parrying into danger."
+        case "Quick Hands":
+            return "\(opening) Stand close to a partner who feeds quick, firm service at chest height. Keep your hands soft but ready, catch cleanly, and release the ball back immediately to keep the rhythm fast."
+        case "Reaction Saves":
+            return "\(opening) Stand a few steps from a partner in your ready position. Have them point left or right just before rolling the ball that way. React to the point, get both hands behind the ball, and secure it."
+        case "Scoop Saves":
+            return "\(opening) Have a partner roll firm ground balls directly at you. Get your body behind the ball, scoop it up with soft hands and bent knees, and bring it into your chest without letting it bobble."
+        case "Set Position Saves":
+            return "\(opening) Stand with feet shoulder-width apart, knees bent, weight forward, and hands ready. Reset into this stance before each of a partner's gentle rolls or passes, then catch securely into your chest."
+        case "Throw Distribution":
+            return "\(opening) Set targets at short, medium, and long distance. Practice underarm rolls to the short target, sidearm throws to the medium one, and overarm throws to the long one, stepping toward each target."
+        case "1v1 Shadow":
+            return "\(opening) Work with a partner in a small cone box. They move the ball without trying to beat you; stay goal-side, mirror every turn with small side steps, and keep your eyes on the ball, not their feet."
+        case "Backpedal and Turn":
+            return "\(opening) Start facing a cone, backpedal to it under control, then turn quickly over one shoulder and sprint to a second cone further on. Alternate which shoulder you turn over each rep."
+        case "Block and Clear":
+            return "\(opening) Stand a few steps from a cone acting as the attacker. Close the space under control, get your body behind an imaginary shot to block it, then clear the loose ball firmly toward open space."
+        case "Clear and Recover":
+            return "\(opening) Step in front of a cone to clear an imaginary cross or shot, then immediately recover into your defensive stance facing the ball again before the next rep begins."
+        case "Close Down":
+            return "\(opening) Place a cone 10 steps away as the attacker. Sprint to close the distance, then brake under control a couple of steps out so you arrive balanced and sideways, not lunging in."
+        case "Cover Shadow":
+            return "\(opening) Work with a partner who plays the attacker against a teammate. Stay a few steps behind and to the side, ready to step in if the attacker gets past the first defender, without ball-watching."
+        case "Defensive Shuffle":
+            return "\(opening) Set three cones in a line. Shuffle quickly from the middle cone to one outside cone, touch it, shuffle back through the middle to the other side, and repeat, staying low throughout."
+        case "Delay the Attacker":
+            return "\(opening) Face a cone acting as the attacker a few steps away. Approach under control without committing to a tackle, staying patient and balanced so you buy time for support to arrive."
+        case "Interception Steps":
+            return "\(opening) Stand off a passing lane between two cones. Read the angle, step in sharply the instant an imaginary pass is played, and clear or control it before resetting to your starting spot."
+        case "Jockeying":
+            return "\(opening) Face a cone dribbling toward you. Stay on the balls of your feet in a low stance, back-pedal and shuffle to match its pace without diving in, and keep your body shape side-on."
+        case "Recovery Run":
+            return "\(opening) Start facing away from the goal. Sprint to a cone 15 steps behind you the instant you turn, then jog back into a defensive position. Repeat, alternating which way you turn to start."
+        case "Tackle Timing":
+            return "\(opening) Face a cone dribbling past you at a steady pace. Stay patient, show it onto your preferred side, and time a clean challenge for the moment the ball is slightly away from the cone."
+        case "Wide Channel Defense":
+            return "\(opening) Stand in a marked wide channel. Shuffle to stay goal-side of a cone moving down the line, forcing it toward the touchline rather than inside, and recover quickly if it accelerates."
+        case "Abs Circuit":
+            return "\(opening) Complete three rounds of 10 crunches, a 20-second plank, 10 bicycle crunches on each side, and 10 slow leg raises. Rest 20 seconds between rounds and keep your lower back pressed down and controlled."
+        case "Agility Sprints":
+            return "\(opening) Place two cones 10 steps apart. Sprint to the second cone, decelerate under control, and walk back to recover. Repeat 8 times, resting 20 seconds between sprints."
+        case "Arm Strength":
+            return "\(opening) Complete three rounds of 8 push-ups, 10 chair triceps dips, and a 20-second high plank hold. Use knee push-ups if needed and keep a straight line from head to knees or heels throughout."
+        case "Balance Circuit":
+            return "\(opening) Hold a single-leg balance for 20 seconds on each leg, then repeat with your eyes closed if it feels stable. Move with control, keep your knees soft, and rest briefly whenever your form starts to drop."
+        case "Chest Workout":
+            return "\(opening) Complete three rounds of 8 regular push-ups, 6 wide push-ups, and a 20-second push-up hold at the top. Use your knees when needed and keep your body in a straight line throughout."
+        case "Core Stability":
+            return "\(opening) Hold a 20-second front plank, a 15-second side plank on each side, and 10 slow dead bugs. Keep your hips level and your lower back flat against the floor on every rep."
+        case "Full Body Workout":
+            return "\(opening) Complete three rounds of 10 squats, 8 push-ups, 10 mountain climbers on each side, 8 reverse lunges on each leg, and a 20-second plank. Rest 30 seconds between rounds."
+        case "Lateral Hops":
+            return "\(opening) Hop side to side over an imaginary line or small marker for 20 seconds, landing softly on both feet each time. Rest 20 seconds and repeat for 4 rounds, keeping your knees soft on landing."
+        case "Leg Strength":
+            return "\(opening) Complete three rounds of 12 squats, 8 reverse lunges on each leg, 12 calf raises, and a 20-second wall sit. Keep your knees lined up over your toes and move with control throughout."
+        case "Mobility Flow":
+            return "\(opening) Move slowly through hip circles, leg swings, walking lunges with a twist, and shoulder rolls. Spend about 30 seconds on each movement, breathing steadily and never forcing a stretch."
+        case "Quick Feet":
+            return "\(opening) Stay light on your toes and tap your feet as quickly as possible in place for 20 seconds, keeping your knees soft and your upper body relaxed. Rest 20 seconds and repeat for 4 rounds."
+        case "Recovery Stretch":
+            return "\(opening) Move gently through calf, quadriceps, hamstring, hip, chest, and shoulder stretches. Hold each stretch for 20 seconds per side without bouncing, breathing slowly and never stretching into pain."
+        case "Running":
+            return "\(opening) Warm up by walking for 1 minute. Run at a comfortable, steady pace, then walk for the final minute to cool down. Keep your shoulders relaxed, breathe steadily, and stop if you feel pain."
+        case "Shuttle Runs":
+            return "\(opening) Place two cones 10 steps apart. Sprint to the far cone, touch the ground, and sprint back to the start. Complete 8 shuttles with 20 seconds of rest between each one."
+        case "Single Leg Strength":
+            return "\(opening) Complete three rounds of 8 single-leg squats and 10 single-leg calf raises on each leg, holding onto something light for balance if needed. Move slowly and keep your standing knee stable."
+        case "Body Feint":
+            return "\(opening) Dribble toward a cone. Shift your weight and upper body sharply one way without touching the ball, then push it the other way with the outside of your foot and accelerate past."
+        case "Box Dribble":
+            return "\(opening) Use four cones to make a box about 6 steps wide and 6 steps long. Dribble anywhere inside the box, keeping the ball close with small touches, using both feet, and practicing sharp turns without letting it leave the box."
+        case "Change of Pace":
+            return "\(opening) Set two cones 12 steps apart. Dribble slowly for the first half of the distance, then push the ball forward and sprint the rest of the way. Turn at the cone and repeat in the other direction."
+        case "Cone Weave":
+            return "\(opening) Place 8 to 10 cones in a line a yard apart. Dribble through them as quickly as you can using small touches with both feet, keeping the ball close enough to change direction at every cone."
+        case "Cruyff Turn":
+            return "\(opening) Dribble toward a cone, fake a pass or shot, then drag the ball behind your standing leg with the inside of the opposite foot. Turn your whole body and accelerate away in the new direction."
+        case "Double Touch":
+            return "\(opening) Dribble at a cone. Push the ball firmly past it with the inside of one foot, then use the outside of the same foot to touch it again and accelerate away before the cone can react."
+        case "Drag Push":
+            return "\(opening) Dribble toward a cone. Drag the ball back and across your body with the sole of one foot, then push it forward with the inside of the same foot and burst away at an angle."
+        case "Figure Eight":
+            return "\(opening) Place two cones about 4 steps apart. Dribble in a tight figure-eight pattern around them using both feet, keeping the ball close and your head up between turns."
+        case "L-Drag Turn":
+            return "\(opening) Place one cone and start about 4 steps away with the ball. Dribble toward it, drag the ball backward with the sole of one foot just before reaching it, then push it sideways with the inside of the same foot to make an L-shaped turn and accelerate away."
+        case "Pullback Turn":
+            return "\(opening) Place one cone and start about 5 steps away with the ball. Dribble toward the cone, place your sole on top of the ball just before reaching it, pull it backward while turning your body, and accelerate back the way you came."
+        case "Scissors Move":
+            return "\(opening) Dribble toward a cone. Circle one foot around the outside of the ball without touching it, then push the ball away in the opposite direction with the outside of your other foot."
+        case "Shield and Turn":
+            return "\(opening) Use a cone as a defender. Position your body between the cone and the ball, hold it under control for two seconds, then spin away using the sole or outside of your foot."
+        case "Slalom Control":
+            return "\(opening) Place 5 to 6 cones in a gentle zigzag line. Dribble through them under close control, favoring small touches over speed, and focus on keeping the ball glued to your feet through every turn."
+        case "Speed Dribble":
+            return "\(opening) Set up two cones far apart. Push the ball firmly ahead of you and sprint to close the gap, using longer touches in open space and smaller ones as you approach each cone."
+        case "Step Over Exit":
+            return "\(opening) Dribble toward a cone. Step over the ball with one foot without touching it, plant that foot, then push the ball away in the opposite direction with the outside of your other foot and accelerate out."
+        case "Stop and Go":
+            return "\(opening) Place two cones about 10 steps apart. Dribble quickly toward the second cone, then stop the ball dead with the sole of your foot, pause for one second, and explode back into a sprint."
+        case "V-Cut Dribble":
+            return "\(opening) Dribble forward, then cut the ball sharply backward and to the side with the inside of your foot to make a V shape, changing direction completely before accelerating away."
+        case "Zigzag Sprint":
+            return "\(opening) Set up 8 cones in a zigzag pattern. Dribble through them at speed, cutting sharply at every cone with your lead foot, then walk back to the start and repeat."
+        case "Aerial Control":
+            return "\(opening) Toss the ball above waist height, let it drop, and cushion it with the top of your foot so it stops within one step. Alternate feet and reset your position after each rep."
+        case "Bounce Control":
+            return "\(opening) Drop the ball and let it bounce once, then cushion it dead with the inside or top of your foot as it comes down. Keep your ankle relaxed to absorb the pace on contact."
+        case "Box Ball Mastery":
+            return "\(opening) Use four cones to mark a small box. Stay inside it while rotating through toe taps, sole rolls, and inside-outside touches, keeping every touch tight enough that the ball never leaves the box."
+        case "Chest Control":
+            return "\(opening) Gently toss the ball above chest height. Lean back slightly, let your chest give on contact to cushion the ball downward, and control the drop with your foot before it bounces away."
+        case "Cushion Touch":
+            return "\(opening) Pass the ball firmly against a wall. As it returns, pull your receiving foot back on contact to absorb the pace so the ball stops dead close to your body instead of bouncing off."
+        case "Directional First Touch":
+            return "\(opening) Pass against a wall at an angle. As the ball returns, use your first touch to redirect it into open space in a new direction rather than stopping it or playing it straight back."
+        case "Foundation Touches":
+            return "\(opening) Use a soft ball in a clear, safe space. Rotate slowly through toe taps, sole rolls, and inside touches, focusing on keeping every touch light, close, and fully under control before adding speed."
+        case "Half Turn Control":
+            return "\(opening) Receive a pass with your back to the target. Take your first touch across your body to turn half-way toward open space, then look up before your next move."
+        case "High Ball Settle":
+            return "\(opening) Have a ball tossed or dropped from above. Cushion it out of the air with your foot, thigh, or chest so it lands dead at your feet instead of bouncing away, and reset between reps."
+        case "Inside-Outside Touches":
+            return "\(opening) Place two cones about 8 steps apart. Using one foot, touch the ball across your body with the inside, then push it back out with the outside of the same foot, moving steadily toward the cone."
+        case "Juggling":
+            return "\(opening) Keep the ball up using your feet, thighs, and head, letting it drop no further than your knee between touches. Try to alternate feet and beat your best streak from your last attempt."
+        case "Outside Foot Control":
+            return "\(opening) Pass against a wall. As it returns, receive with the outside of your foot and guide the ball across your body into open space with a single smooth touch."
+        case "Small Space Weave":
+            return "\(opening) Use a soft ball in a clear indoor space. Weave the ball between your feet in tight figure-eight touches without any markers, staying light on your feet and keeping every touch close."
+        case "Sole Cushion":
+            return "\(opening) Pass the ball firmly against a wall. As it returns, trap it dead under the sole of your foot the instant it arrives, keeping your ankle locked and your weight balanced over the ball."
+        case "Sole Roll and Push":
+            return "\(opening) Place two cones about 8 steps apart. Roll the ball sideways across your body with the sole of one foot, then immediately push it forward with the inside of your other foot and follow it toward the cone."
+        case "Sole Tap Rhythm":
+            return "\(opening) Tap the top of the ball lightly with alternating soles, keeping it almost still beneath you. Build a steady rhythm first, then gradually speed up without losing control of the ball."
+        case "Turn on First Touch":
+            return "\(opening) Receive a pass facing away from where you want to go. Use your first touch to turn the ball into open space in one movement rather than controlling it dead and turning separately."
+        case "Wall Control":
+            return "\(opening) Make a small square box on the ground with four cones, positioned slightly away from a wall. Pass against the wall at an angle so it pops up on the return, then cushion and trap it inside the box."
+        case "Wall Touch Challenge":
+            return "\(opening) Pass against a wall and control every return with a different part of your foot in turn — inside, outside, sole, and laces — keeping the ball inside a small marked space."
+        case "Driven Wall Pass":
+            return "\(opening) Mark a target on a wall. Plant your standing foot beside the ball and drive a firm, flat pass with your laces through the target, controlling the return before the next rep."
+        case "First Time Pass":
+            return "\(opening) Have a ball played or rebounded to you from a wall. Pass it first time without taking a touch, keeping your standing foot pointed at the target and striking through the middle of the ball."
+        case "Give and Go":
+            return "\(opening) Pass the ball against a wall, then immediately sprint past it as if overlapping a teammate, and take the rebound in stride without breaking speed."
+        case "Lofted Pass":
+            return "\(opening) Strike underneath the ball with a stabbing motion to lift it over a short obstacle or gap to a target beyond. Focus on a soft, accurate landing rather than distance."
+        case "Long Passing":
+            return "\(opening) Place a target 20 steps away. Strike underneath the ball with your laces to drive it toward the target with enough loft to clear the distance, focusing on direction before power."
+        case "One Touch Passing":
+            return "\(opening) Stand a few steps from a wall. Pass the ball against it and return every ball with one touch, without stopping it first. Stay light on your toes to adjust to each return."
+        case "Outside Foot Pass":
+            return "\(opening) Pass against a wall or to a partner using only the outside of your foot. Keep your ankle firm and follow through toward the target so the ball travels straight rather than curling off line."
+        case "Pass and Turn":
+            return "\(opening) Pass the ball against a wall, and as it returns, take a touch that turns your body away from the wall into open space before resetting for the next pass."
+        case "Passing Gates":
+            return "\(opening) Set up two cones a foot apart as a gate. Pass the ball through the gate to a wall or partner, focusing on weight and accuracy rather than power, and reset after every pass."
+        case "Triangle Passing":
+            return "\(opening) Set three cones in a triangle a few steps apart. Pass to one corner, follow your pass, receive at the next corner with an open first touch, and keep rotating around the triangle."
+        case "Two Touch Passing":
+            return "\(opening) Stand near a wall. Use your first touch to control the return across your body, then your second touch to pass it back. Alternate feet and keep both touches crisp."
+        case "Wall Passing":
+            return "\(opening) Stand a few steps from a wall and mark your spot with a cone. Pass the ball firmly against the wall, control the return, and play the next pass, alternating feet evenly."
+        case "Weak Foot Passing":
+            return "\(opening) Stand a few steps from a wall and use only your weaker foot. Point your standing foot at the target, lock your ankle, and strike through the middle of the ball with the inside of your foot."
+        case "Cutback Finish":
+            return "\(opening) Have a ball played or dribbled toward the byline, then cut it back to a spot near the penalty mark. Meet the cutback with a first-time strike, keeping your shot low and on target."
+        case "Dribble and Shoot":
+            return "\(opening) Set up 8 cones in a line leading toward the goal. Dribble around every cone with small, controlled touches, then shoot as soon as you clear the last one, alternating your finishing foot."
+        case "Far Post Finish":
+            return "\(opening) Start from a wide angle and time a run across the box toward the far post. Meet an imaginary cross with a firm first-time strike aimed low inside the far post."
+        case "First Touch Finish":
+            return "\(opening) Pass the ball against a wall, move toward the return, take one touch to set yourself up, then shoot with your second touch before the ball gets away from you."
+        case "Low Driven Finish":
+            return "\(opening) Strike through the top half of the ball with your laces so the shot stays low and skids along the ground, keeping your knee over the ball as you make contact."
+        case "Near Post Finish":
+            return "\(opening) Attack the near post with a short, sharp run, arriving just ahead of an imaginary cross or pass and finishing with a firm, low strike before the keeper can set."
+        case "One Touch Finish":
+            return "\(opening) Have a ball rolled to you from a different angle each time. Call your target corner before it arrives, then strike it first time toward that corner, prioritizing accuracy over power."
+        case "Power Shots":
+            return "\(opening) Place the ball just outside the penalty area. Approach at an angle, plant your standing foot beside the ball, lock your ankle, and strike through the center with your laces for maximum power on target."
+        case "Practice Shooting":
+            return "\(opening) Place the ball just outside the penalty area and pick your corner before each attempt. Approach at a slight angle, plant your standing foot beside the ball, and strike through it with the inside or laces of your foot."
+        case "Quick Shot":
+            return "\(opening) Set up a cone or pole as a defender. Touch the ball past it to one side and shoot immediately, prioritizing a fast release over a big back-swing."
+        case "Rebound Finish":
+            return "\(opening) Take an initial shot against a wall or rebound surface, then react instantly to the loose ball and finish it with a sharp, first-time strike."
+        case "Target Corners":
+            return "\(opening) Mark the four corners of the goal as targets. Call your target out loud before each shot, then strike for accuracy over power, alternating feet between attempts."
+        case "Turn and Shoot":
+            return "\(opening) Start with your back to goal beside a cone. Roll the ball forward, turn quickly around the cone using one touch, and shoot as soon as you're facing goal."
+        case "Volley Finish":
+            return "\(opening) Gently toss the ball in front of yourself, let it bounce once, and strike it out of the air toward goal before the second bounce, keeping your knee over the ball."
+        case "Weak Foot Finishing":
+            return "\(opening) Set the ball near the penalty spot and use only your weaker foot. Keep your ankle locked and aim low into alternating corners, prioritizing control over power."
+        case "Agility Gate Sprint":
+            return "\(opening) Set up two small cone gates a few steps apart. Sprint through the first gate, change direction sharply, and explode through the second, keeping your steps short and quick through each gate."
+        case "Full Field Sprint Finish":
+            return "\(opening) Sprint the length of the area at full effort, then settle your touch and finish on goal with a composed strike despite your tired legs."
+        case "Rapid Fire Finishing":
+            return "\(opening) Have a partner feed a quick series of balls to you one after another. Finish each one first time or in two touches, resetting your feet instantly between shots."
+        case "Speed Finishing Ladder":
+            return "\(opening) Sprint a short distance, then immediately receive a pass and finish on goal. Each rep, add a few extra steps to the sprint so the finish gets progressively harder to set up for."
+        case "First Touch Gates":
+            return "\(opening) Set up three small cone gates around you. Receive a pass, choose a gate based on where you want to go, and guide your first touch cleanly through it in one movement."
+        case "Thigh Control":
+            return "\(opening) Toss the ball toward your thigh, relax your leg on contact to cushion it downward, and let it drop to your feet under control. Alternate thighs evenly between reps."
+        case "Advanced Ball Mastery":
+            return "\(opening) Chain toe taps, sole rolls, inside-outside touches, and pullbacks together without stopping, moving through a small space at a quicker tempo than the basic version."
+        case "Around the World":
+            return "\(opening) Juggle the ball and, between touches, swing one foot fully around the ball without letting it touch the ground. Reset after every attempt and track how many clean circles you complete."
+        case "Beat the Cone":
+            return "\(opening) Dribble at a cone acting as a defender. Use a change of pace or a skill move to beat it cleanly on either side, then accelerate away at full speed."
+        case "Complete Midfielder Circuit":
+            return "\(opening) Combine a short pass, a turn under pressure, and a longer switching pass in one continuous sequence, resetting fully and repeating at a brisk, match-like tempo."
+        case "Crossbar Challenge":
+            return "\(opening) Place the ball just outside the penalty area and try to strike the crossbar with each shot. Focus on a clean connection and a rising trajectory rather than pure power."
+        case "Elite Finishing Circuit":
+            return "\(opening) Combine a first touch, a quick turn, and a first-time finish in one flowing sequence. Reset completely between reps and keep your technique sharp as the pace increases."
+        case "Elite Touch and Turn":
+            return "\(opening) Receive the ball under pressure, take a tight first touch away from an imaginary defender, and turn into space in one continuous motion before accelerating away."
+        case "Explosive Dribble":
+            return "\(opening) Start from a standing position and explode into a sprint dribble on your first touch, pushing the ball just far enough ahead to run onto at full speed."
+        case "First Touch Under Pressure":
+            return "\(opening) Have a partner close you down as the ball arrives. Shield it with your body, take a touch away from the pressure, and keep the ball under control as they approach."
+        case "Juggling Ladder":
+            return "\(opening) Juggle the ball, trying to beat your previous best streak each attempt. Add a challenge each round — alternating feet, including your thighs, or using only your weaker foot."
+        case "Match Speed Control":
+            return "\(opening) Receive passes at match tempo and control them cleanly with one touch, immediately setting up your next pass or shot rather than taking an extra settling touch."
+        case "One Touch Wonder":
+            return "\(opening) Play every pass and shot in this session with a single touch — no controlling the ball first. Stay light on your feet so you can adjust your body before each ball arrives."
+        case "Perfect Pass Streak":
+            return "\(opening) Pass against a wall or to a partner, counting consecutive accurate passes without a miscontrol. If you miss, restart your streak from zero and try to beat your best run."
+        case "Precision Cross Finish":
+            return "\(opening) Have crosses served into the box from the side. Time your run to meet the ball at its highest accurate point and direct a first-time header or volley on target."
+        case "Pressure Cooker Finishing":
+            return "\(opening) Have a partner closely defend you as you try to finish chances created from a pass or dribble, forcing you to shoot under realistic time pressure."
+        case "Pressure Passing":
+            return "\(opening) Have a partner close you down the instant you receive the ball. Keep your first touch away from them and release an accurate pass quickly before they arrive."
+        case "Rapid Fire Volleys":
+            return "\(opening) Have a partner toss a quick series of balls for you to volley, resetting your body and striking each one cleanly before the next arrives."
+        case "Skill Move Combo":
+            return "\(opening) Chain two skill moves together without stopping the ball — for example a step over into a scissors — keeping your touches tight and accelerating away after the second move."
+        case "Striker Movement Circuit":
+            return "\(opening) Practice checking away from goal, then spinning sharply back toward it to receive and finish, timing your run so you arrive onside and at full speed."
+        case "Target Practice Circuit":
+            return "\(opening) Rotate through shots at each corner of the goal in sequence, calling your target before every attempt and resetting your stance fully between shots."
+        case "Technical Mastery Circuit":
+            return "\(opening) Combine close control, a turn, and a pass or shot into one flowing sequence, slowing down any part that breaks down before building back up to full speed."
+        case "Weak Foot Hero":
+            return "\(opening) Complete every touch, pass, and shot in this session using only your weaker foot, moving slower than usual until the technique feels controlled and confident."
+        case "Decision Under Pressure":
+            return "\(opening) Have a partner close you down as you receive the ball. Scan before it arrives, then decide instantly whether to pass, turn, or shield based on where the pressure comes from."
+        case "Field Awareness Circuit":
+            return "\(opening) Before each touch, check over both shoulders to picture where open space and imaginary teammates are, then play your next action based on what you saw rather than habit."
+        case "Game Speed Scanning":
+            return "\(opening) Check over your shoulders every couple of seconds while moving with or without the ball, calling out loud what you see each time to build the habit under fatigue."
+        case "Numbers Up Counter":
+            return "\(opening) Picture a 2-vs-1 breaking forward. Decide out loud whether you'd pass or dribble based on where an imaginary defender is standing, then execute that choice with the ball."
+        case "Read and React Passing":
+            return "\(opening) Have a partner call a direction just as they pass to you. React immediately, controlling your first touch toward the called side without pausing to think."
+        case "Finishing Clock":
+            return "\(opening) Have a partner feed balls in quick succession from just outside the box. Finish as many clean shots on target as you can, resetting your feet after every attempt and never pausing to admire one."
+        case "Pressure Finish Gauntlet":
+            return "\(opening) Have a partner close you down the instant you receive the ball. Take one touch away from the pressure and finish quickly before they can block the shot — the tighter the pressure, the better the rep."
+        case "Dribble Gauntlet":
+            return "\(opening) Place 8 to 10 cones in a tight line. Weave through them as many times as you can, counting only clean reps where the ball never leaves your close control."
+        case "Chain Move Challenge":
+            return "\(opening) Dribble at a cone and chain two different moves back to back without slowing down — for example a step over into a scissors — before accelerating away at full speed."
+        case "Control Gauntlet":
+            return "\(opening) Pass against a wall and cushion every return dead with a single touch, counting how many clean traps in a row you can land before a touch gets away from you."
+        case "Pressure Touch Challenge":
+            return "\(opening) Have a partner serve balls quickly from different heights and angles while closing you down. Control each one away from the pressure with a single touch before playing it out."
+        case "Passing Gauntlet":
+            return "\(opening) Pass against a wall as fast and accurately as you can, counting every clean pass that returns under control. Reset your count if a pass gets away from you."
+        case "Rapid Switch Challenge":
+            return "\(opening) Alternate short, sharp passes with long switching passes to a target, changing which type you play every few reps without warning yourself in advance."
         default:
             break
         }
@@ -684,160 +980,6 @@ struct DrillTimerView: View {
         }
     }
 
-    private var untimedDrillInstructions: LocalizedStringResource {
-        switch drill.name {
-        case "Weak Foot Passing":
-            "Stand a few steps away from a wall and mark your starting spot with a cone. Use only your weaker foot for this drill. Point your standing foot toward the target, keep it beside the ball, lock the ankle of your passing foot, and strike through the middle of the ball with the inside of your foot. Aim for the same spot on the wall each time. Control the return when needed, reset your body, and complete 50 accurate passes with your weaker foot."
-        case "One Touch Passing":
-            "Stand a few steps from a wall with enough space to move safely. Pass the ball against the wall and return it with one touch without stopping it first. Keep your standing foot pointed toward the target, lock your ankle, and use the inside of your foot for accuracy. Stay light on your toes so you can adjust to every return. Complete 25 one-touch passes with your right foot, then 25 with your left foot."
-        case "Wall Passing":
-            "Stand a few steps from a wall and mark your starting spot with a cone. Pass the ball firmly against the wall, control the return, and play the next pass. Keep your standing foot beside the ball, lock your ankle, and aim for the same spot on the wall each time. Complete 25 passes with your right foot and 25 passes with your left foot."
-        case "Wall Control":
-            "Make a square control box on the ground using four cones. Choose a box size that challenges you. Stand inside the box with a wall slightly to your side. Pass the ball against the wall at an angle so it returns and pops up. As it comes back, cushion the ball with your foot and trap it inside the box. Keep your ankle firm, stay balanced, and try to stop the ball close to you. Complete 20 passes and count every successful trap that stays inside the box."
-        case "Quick Shot":
-            "Set up a pole or cone. Tap the ball to the right or left, and shoot. Take 20 shots in total: 10 with your right foot and 10 with your left foot."
-        case "Dribble and Shoot":
-            "Set up 8 cones in a line leading toward the goal. Start with the ball at the first cone, dribble around every cone using small, controlled touches, and then shoot when you reach the end. Reset the ball and repeat for 20 shots: 10 with your right foot and 10 with your left foot."
-        default:
-            "Take 20 shots in total: 10 with your right foot and 10 with your left foot. Place the ball just outside the penalty area and choose the corner you want to hit before each attempt. Approach the ball at a slight angle, plant your standing foot beside it, lock your ankle, keep your head steady, and strike through the ball. Focus on accuracy before power. Reset after every shot and alternate feet until you finish all 20."
-        }
-    }
-
-    private var timedDrillInstructions: LocalizedStringResource? {
-        switch drill.name {
-        case "Speed Dribble":
-            "Set up two cones far apart. Dribble to each cone quickly using small touches. Do this for 2 minutes."
-        case "Cone Weave":
-            "Place 8–10 cones in a line and dribble around them as fast as possible. Do this for 2 minutes."
-        case "Box Dribble":
-            "Use four cones to make a box about 6 steps wide and 6 steps long. Dribble anywhere inside the box for 2 minutes. Keep the ball close with small touches, use both feet, and change direction often. Practice sharp turns, quick stops, and bursts of speed without letting the ball leave the box."
-        case "L-Drag Turn":
-            "Place one cone and start about 4 steps away with the ball. Dribble toward the cone under control. Just before reaching it, put the sole of one foot on top of the ball and drag it backward. Turn your hips, then use the inside of the same foot to push the ball sideways, making an L shape around the cone. Accelerate away in the new direction. Reset, alternate feet, and repeat for 2 minutes."
-        case "Stop and Go":
-            "Place two cones about 10 steps apart. Dribble quickly toward the second cone using small touches. Halfway there, stop the ball completely with the sole of your foot, pause for one second, then push the ball forward and explode into a fast dribble. Turn at the cone and repeat in the other direction. Alternate the foot you use to stop and restart the ball for 2 minutes."
-        case "Pullback Turn":
-            "Place one cone and start about 5 steps away with the ball. Dribble toward the cone, then place the sole of one foot on top of the ball just before you reach it. Pull the ball backward while turning your body, take it away with the same foot, and accelerate back toward your starting point. Keep the ball close and look up after the turn. Alternate feet and repeat for 2 minutes."
-        case "Wall Passing":
-            "Find a wall and pass the ball against it for 5 minutes. Alternate between your right and left foot."
-        case "Juggling":
-            "Juggle as much as you can for 10 minutes. Try to alternate feet, keep your foot locked in, and try each day to get a better record."
-        case "Inside-Outside Touches":
-            "Place two cones about 8 steps apart. Dribble toward the second cone using only one foot: touch the ball across your body with the inside of the foot, then push it back outside with the outside of the same foot. Keep alternating inside and outside touches while moving forward. Turn at the cone, switch feet, and continue for 2 minutes. Stay light on your toes and keep every touch close."
-        case "Sole Roll and Push":
-            "Place two cones about 8 steps apart. Put the sole of one foot on the ball and roll it sideways across your body. Immediately use the inside of your other foot to push the ball forward. Follow the ball, then repeat the roll and push while moving toward the cone. Turn around, switch the rolling foot, and continue for 2 minutes. Keep your knees bent and the ball close."
-        case "First Touch Finish":
-            "Pass the ball against a wall, move toward the return, take one touch into space, and shoot with your second touch. Complete 10 shots with each foot."
-        case "Target Corners":
-            "Mark the four corners of the goal as targets. Take 20 controlled shots, calling your target before every shot. Aim for accuracy and alternate feet."
-        case "Power Shots":
-            "Place the ball outside the penalty area. Approach at an angle, plant beside the ball, lock your ankle, and strike through the center with your laces. Take 10 shots with each foot."
-        case "Weak Foot Finishing":
-            "Set the ball near the penalty spot and use only your weaker foot. Take 20 shots, aiming low into alternating corners while keeping your ankle firm."
-        case "Turn and Shoot":
-            "Start with your back to goal beside a cone. Roll the ball forward, turn around the cone with one touch, and shoot quickly. Complete 10 turns each way."
-        case "Volley Finish":
-            "Gently toss the ball in front of you, let it bounce once, then strike it toward a goal before the second bounce. Complete 10 volleys with each foot."
-        case "Figure Eight":
-            "Place two cones 4 steps apart. Dribble in a figure-eight pattern using both feet, keeping the ball close and looking up between turns for 2 minutes."
-        case "Zigzag Sprint":
-            "Set up 8 cones in a zigzag. Dribble through them at speed, cut sharply at every cone, walk back, and repeat for 2 minutes."
-        case "Scissors Move":
-            "Dribble toward a cone, circle one foot around the front of the ball, then push away with the outside of the other foot. Alternate sides for 2 minutes."
-        case "Change of Pace":
-            "Set two cones 12 steps apart. Dribble slowly for the first half, then push the ball forward and sprint to the second cone. Turn and repeat for 2 minutes."
-        case "Shield and Turn":
-            "Use a cone as a defender. Keep your body between the cone and ball, hold the ball for two seconds, then turn away with the sole or outside of your foot. Alternate sides for 2 minutes."
-        case "Cruyff Turn":
-            "Dribble toward a cone, fake a pass, then pull the ball behind your standing leg with the inside of your foot. Turn and accelerate away. Complete 10 each side."
-        case "Long Passing":
-            "Place a target 20 steps away. Strike under the ball with your laces to reach the target. Complete 10 long passes with each foot, focusing on direction before power."
-        case "Two Touch Passing":
-            "Stand near a wall. Use your first touch to control the return across your body and your second touch to pass. Complete 25 repetitions with each foot."
-        case "Driven Wall Pass":
-            "Mark a target on a wall. Plant beside the ball and drive a firm pass with your laces through the target. Control the return and complete 20 passes with each foot."
-        case "Aerial Control":
-            "Toss the ball above waist height, cushion it with your foot, and stop it within one step. Complete 10 controls with each foot."
-        case "First Touch Gates":
-            "Make three cone gates around you. Pass against a wall, choose a gate, and guide your first touch through it. Complete 20 controlled first touches."
-        case "Thigh Control":
-            "Toss the ball toward your thigh, relax your leg to cushion it downward, then control it with your foot. Complete 20 clean controls, alternating thighs."
-        case "Chest Control":
-            "Gently toss the ball above chest height. Lean back slightly, cushion it down with your chest, and control it with your foot. Complete 15 safe repetitions."
-        case "Cushion Touch":
-            "Pass firmly against a wall. As the ball returns, pull your receiving foot backward on contact so the ball stops close to you. Complete 20 touches with each foot."
-        case "Outside Foot Control":
-            "Pass against a wall, receive with the outside of your foot, and guide the ball across your body into space. Complete 20 controls with each foot."
-        case "Set Position Saves":
-            "Stand with feet shoulder-width apart, knees bent, weight forward, and hands ready. Have a partner gently roll or pass 20 balls toward you. Get set before each ball, catch securely, and bring it into your chest."
-        case "Low Diving Saves":
-            "Use soft grass or a padded mat. Start on your knees while a partner gently rolls the ball one step to either side. Move your hands first, land on your side instead of your elbow, secure the ball, and complete 10 safe saves each way."
-        case "Goalkeeper Footwork":
-            "Place four cones in a small square. Stay in your ready position and move around the square using quick side steps without crossing your feet. Reset in the center after every lap and continue for 2 minutes."
-        case "Angle Positioning":
-            "Set one cone in the goal center and three shooting cones in an arc. Move from the center toward each cone, staying between the ball and goal. Get set, hold for two seconds, then recover. Complete 5 rounds."
-        case "Throw Distribution":
-            "Set three cone targets at short, medium, and long distances. Practice 10 underarm rolls, 10 sidearm throws, and 10 overarm throws. Step toward the target and focus on accuracy."
-        case "Cross Collection":
-            "Work with a partner using gentle high tosses. Call for the ball, step forward, jump from one leg, raise the other knee for protection, and catch at the highest safe point. Complete 12 controlled catches."
-        case "Reaction Saves":
-            "Stand 3 steps from a partner in your ready position. Have them point left or right before gently rolling the ball that way. React quickly, get both hands behind the ball, and complete 20 saves."
-        case "1v1 Goalkeeper":
-            "Make a small goal and work with a partner. Start on your line, move forward under control as the attacker approaches, stay tall and balanced, then set before the shot. Complete 10 turns and switch roles."
-        case "High Ball Catch":
-            "Have a partner gently toss the ball above your head. Call for the ball, jump from one leg, catch it at the highest safe point, and secure it to your chest. Complete 15 catches."
-        case "Jockeying":
-            "Place two cones 8 steps apart. Face forward in a low defensive stance, stay on your toes, and shuffle between the cones without crossing your feet. Keep your body slightly sideways and repeat for 2 minutes."
-        case "Defensive Shuffle":
-            "Set three cones in a straight line. Shuffle quickly from the middle cone to each outside cone, touch it, and return to the middle. Stay low and balanced for 2 minutes."
-        case "Close Down":
-            "Place a cone 10 steps away as the attacker. Sprint toward it, then slow down 2 steps before the cone. Arrive sideways, balanced, and ready to block. Reset and repeat 12 times."
-        case "Recovery Run":
-            "Place one cone at the starting line and another 15 steps behind you. Begin in a defensive stance, turn quickly, sprint to the back cone, then recover into position. Complete 10 runs on each turning side."
-        case "Block and Clear":
-            "Place a cone as the attacker and stand 5 steps away. Close the space, plant firmly, block an imaginary shot, then clear the ball safely toward a wide target. Complete 10 clearances with each foot."
-        case "1v1 Shadow":
-            "Work with a partner in a small cone box. The attacker moves without tackling while the defender stays goal-side and mirrors every turn. Switch roles after 45 seconds and complete three rounds each."
-        case "Backpedal and Turn":
-            "Backpedal from the first cone to the second, turn over one shoulder, and sprint to the third cone. Alternate turning sides for 12 repetitions."
-        case "Running":
-            "Warm up by walking for 1 minute. Run at a comfortable, steady pace for 8 minutes, then walk for the final minute. Keep your shoulders relaxed, breathe steadily, and stop if you feel pain."
-        case "Abs Circuit":
-            "Complete three rounds: 10 crunches, a 20-second plank, 10 bicycle crunches on each side, and 10 slow leg raises. Rest for 20 seconds between rounds and keep your lower back controlled."
-        case "Arm Strength":
-            "Complete three rounds of 8 push-ups, 10 chair triceps dips, and a 20-second high plank. Use knee push-ups if needed and keep a straight line from your head to your knees or heels."
-        case "Leg Strength":
-            "Complete three rounds of 12 squats, 8 reverse lunges on each leg, 12 calf raises, and a 20-second wall sit. Keep your knees lined up with your toes and move with control."
-        case "Chest Workout":
-            "Complete three rounds of 8 regular push-ups, 6 wide push-ups, and a 20-second push-up hold at the top. Use your knees when needed and keep your body straight."
-        case "Full Body Workout":
-            "Complete three rounds of 10 squats, 8 push-ups, 10 mountain climbers on each side, 8 reverse lunges on each leg, and a 20-second plank. Rest for 30 seconds between rounds."
-        case "Agility Sprints":
-            "Place two cones 10 steps apart. Sprint to the second cone, slow down under control, and walk back. Repeat 8 times, resting for 20 seconds between sprints."
-        case "Recovery Stretch":
-            "Move gently through calf, quadriceps, hamstring, hip, chest, and shoulder stretches. Hold each stretch for 20 seconds per side without bouncing, breathe slowly, and never stretch into pain."
-        case "Shuttle Runs":
-            "Place two cones 10 steps apart. Sprint to the far cone, touch the ground, and sprint back. Complete 8 shuttles with 20 seconds of rest between rounds."
-        case "Near Post Finish", "Cutback Finish":
-            "Use a ball, a safe goal, and one marker. Focus on a controlled setup touch and accurate finishing."
-        case "V-Cut Dribble", "Double Touch":
-            "Use a ball and two markers. Repeat the move with both feet while keeping the ball close."
-        case "Triangle Passing", "Outside Foot Pass":
-            "Use a wall or partner and nearby markers. Focus on clean technique and accurate passes."
-        case "Bounce Control", "Half Turn Control":
-            "Use a ball and a safe space. Cushion every touch and move the ball into space under control."
-        case "Foundation Touches", "Small Space Weave":
-            "Use a soft ball in a clear indoor space. Stay light on your feet and keep every touch close."
-        case "Scoop Saves", "Quick Hands":
-            "Work with a partner using gentle service. Get set before each ball and secure it safely."
-        case "Interception Steps", "Clear and Recover":
-            "Use markers to practice reading the pass, stepping in under control, and recovering your position."
-        case "Balance Circuit", "Quick Feet":
-            "Move with control, keep your knees soft, and rest briefly whenever your form starts to drop."
-        default:
-            nil
-        }
-    }
-
     var body: some View {
         ScrollView {
             VStack(spacing: 32) {
@@ -858,7 +1000,7 @@ struct DrillTimerView: View {
                         .clipped()
 
                     LinearGradient(
-                        colors: [.clear, Color.soccerNavy.opacity(0.88)],
+                        colors: [.clear, Color.black.opacity(0.72)],
                         startPoint: .top,
                         endPoint: .bottom
                     )
@@ -873,15 +1015,15 @@ struct DrillTimerView: View {
                     .padding(.bottom, 14)
                 }
                 .frame(height: 180)
-                .foregroundStyle(Color.soccerCream)
+                .foregroundStyle(.white)
                 .overlay(alignment: .topTrailing) {
                     if DrillPresentation.isIndoor(drill.name) {
                         Label("Indoor", systemImage: "house.fill")
                             .font(.caption.weight(.heavy))
                             .padding(.horizontal, 10)
                             .padding(.vertical, 6)
-                            .background(Color.soccerNavy.opacity(0.85), in: .capsule)
-                            .foregroundStyle(Color.soccerLime)
+                            .background(.white, in: .capsule)
+                            .foregroundStyle(Color.soccerAccent)
                             .padding(12)
                     }
                 }
@@ -938,7 +1080,7 @@ struct DrillTimerView: View {
                 Text("Reward: \(pointsAward) points")
                 .font(.title3)
                 .fontWeight(.bold)
-                .foregroundStyle(Color.soccerGreen)
+                .foregroundStyle(Color.soccerAccent)
 
             if isPassAndTurnDrill {
                 Text(passAndTurnInstructions)
@@ -951,7 +1093,7 @@ struct DrillTimerView: View {
                     .clipShape(.rect(cornerRadius: 16))
                     .overlay {
                         RoundedRectangle(cornerRadius: 16)
-                            .stroke(.black, lineWidth: 3)
+                            .stroke(Color.soccerAccent.opacity(0.3), lineWidth: 2)
                     }
                     .padding(.horizontal, 20)
 
@@ -984,8 +1126,8 @@ struct DrillTimerView: View {
                     .fontWeight(.bold)
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(calloutsActive ? Color.red : Color.black)
-                    .foregroundStyle(Color.soccerCream)
+                    .background(calloutsActive ? Color.red : Color.soccerAccent)
+                    .foregroundStyle(.white)
                     .clipShape(.rect(cornerRadius: 14))
                     .padding(.horizontal, 40)
                 }
@@ -1000,7 +1142,7 @@ struct DrillTimerView: View {
                     .clipShape(.rect(cornerRadius: 16))
                     .overlay {
                         RoundedRectangle(cornerRadius: 16)
-                            .stroke(.black, lineWidth: 3)
+                            .stroke(Color.soccerAccent.opacity(0.3), lineWidth: 2)
                     }
                     .padding(.horizontal, 20)
 
@@ -1047,8 +1189,8 @@ struct DrillTimerView: View {
                     .fontWeight(.bold)
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(Color.soccerGreen)
-                    .foregroundStyle(Color.soccerCream)
+                    .background(Color.soccerAccent)
+                    .foregroundStyle(.white)
                     .clipShape(.rect(cornerRadius: 14))
                     .padding(.horizontal, 40)
                 } else {
@@ -1066,8 +1208,8 @@ struct DrillTimerView: View {
                     .fontWeight(.bold)
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(shootingCooldown == 0 ? Color.soccerGreen : Color.gray)
-                    .foregroundStyle(Color.soccerCream)
+                    .background(shootingCooldown == 0 ? Color.soccerAccent : Color.gray)
+                    .foregroundStyle(.white)
                     .clipShape(.rect(cornerRadius: 14))
                     .padding(.horizontal, 40)
                     .disabled(shootingCooldown > 0)
@@ -1084,7 +1226,7 @@ struct DrillTimerView: View {
                         .clipShape(.rect(cornerRadius: 16))
                         .overlay {
                             RoundedRectangle(cornerRadius: 16)
-                                .stroke(.black, lineWidth: 3)
+                                .stroke(Color.soccerAccent.opacity(0.3), lineWidth: 2)
                         }
                         .padding(.horizontal, 20)
                 }
@@ -1135,8 +1277,8 @@ struct DrillTimerView: View {
                 }
                 .font(.title2)
                 .padding()
-                .background(timerActive ? Color.red : Color.black)
-                .foregroundStyle(Color.soccerCream)
+                .background(timerActive ? Color.red : Color.soccerAccent)
+                .foregroundStyle(.white)
                 .clipShape(.rect(cornerRadius: 12))
             }
 
@@ -1144,7 +1286,7 @@ struct DrillTimerView: View {
                 Text("Good job, keep it up!")
                     .font(.largeTitle)
                     .fontWeight(.bold)
-                    .foregroundStyle(Color.soccerGreen)
+                    .foregroundStyle(Color.soccerAccent)
 
                 if let practiceRecommendation {
                     Text(practiceRecommendation)
@@ -1163,7 +1305,7 @@ struct DrillTimerView: View {
                     Text("Completed! +\(awardedPoints) points • +\(awardedXP) XP")
                         .font(.title2)
                         .fontWeight(.bold)
-                        .foregroundStyle(Color.soccerGreen)
+                        .foregroundStyle(Color.soccerAccent)
                 } else {
                     Button("Complete") {
                         completeDrill()
@@ -1172,8 +1314,8 @@ struct DrillTimerView: View {
                     .fontWeight(.bold)
                     .padding()
                     .frame(maxWidth: .infinity)
-                    .background(Color.soccerGreen)
-                    .foregroundStyle(Color.soccerCream)
+                    .background(Color.soccerAccent)
+                    .foregroundStyle(.white)
                     .clipShape(.rect(cornerRadius: 14))
                     .padding(.horizontal, 40)
                 }
@@ -1184,9 +1326,9 @@ struct DrillTimerView: View {
             .frame(maxWidth: .infinity)
             .padding(.bottom, 104)
         }
-        .foregroundStyle(Color.soccerCream)
+        .foregroundStyle(Color.soccerText)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.soccerNavy.ignoresSafeArea())
+        .background(Color.soccerBackground.ignoresSafeArea())
         .onDisappear {
             if timerActive || (shootingStarted && shootingCooldown > 0) {
                 timerActive = false
@@ -1202,7 +1344,7 @@ struct DrillTimerView: View {
         VStack(spacing: 7) {
             Image(systemName: icon)
                 .font(.title2)
-                .foregroundStyle(Color.soccerLime)
+                .foregroundStyle(Color.soccerAccent)
             Text(title)
                 .font(.caption2)
                 .fontWeight(.bold)
@@ -1268,15 +1410,15 @@ struct DrillTimerView: View {
             .fontWeight(.bold)
             .frame(maxWidth: .infinity)
             .padding()
-            .background(hasValidScore ? Color.soccerGreen : Color.gray)
+            .background(hasValidScore ? Color.soccerAccent : Color.gray)
             .foregroundStyle(Color.white)
             .clipShape(.rect(cornerRadius: 14))
             .disabled(!hasValidScore)
         }
         .padding(32)
-        .foregroundStyle(Color.soccerCream)
+        .foregroundStyle(Color.soccerText)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.soccerNavy.ignoresSafeArea())
+        .background(Color.soccerBackground.ignoresSafeArea())
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()

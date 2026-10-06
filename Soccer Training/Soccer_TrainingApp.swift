@@ -21,7 +21,7 @@ struct ConfettiView: View {
         ZStack {
             ForEach(particles, id: \.self) { _ in
                 Circle()
-                    .fill([Color.soccerLime, .soccerGreen, .soccerGold, .yellow].randomElement()!)
+                    .fill([Color.soccerAccent, .soccerAccentLight, .soccerGold, .yellow].randomElement()!)
                     .frame(width: 6, height: 6)
                     .modifier(ConfettiMotion())
             }
@@ -54,7 +54,7 @@ private struct PlayerCreateHeroHeader: View {
     var body: some View {
         ZStack {
             LinearGradient(
-                colors: [Color.soccerGreen.opacity(0.85), Color.soccerNavy.opacity(0.85)],
+                colors: [Color.soccerAccent, Color.soccerAccentLight],
                 startPoint: animate ? .topLeading : .bottomTrailing,
                 endPoint: animate ? .bottomTrailing : .topLeading
             )
@@ -63,13 +63,14 @@ private struct PlayerCreateHeroHeader: View {
             VStack(spacing: 8) {
                 Image(systemName: "figure.soccer")
                     .font(.system(size: 56))
-                    .foregroundStyle(Color.soccerLime)
+                    .foregroundStyle(.white)
                     .symbolEffect(.bounce, options: .repeating, value: animate)
                 Text("Create Your Player")
                     .font(.largeTitle).bold()
+                    .foregroundStyle(.white)
                 Text("Kick off your journey")
                     .font(.subheadline)
-                    .foregroundStyle(Color.soccerCream.opacity(0.9))
+                    .foregroundStyle(.white.opacity(0.9))
             }
             .padding(.vertical, 16)
         }
@@ -129,26 +130,22 @@ private struct AppBenefitsView: View {
 
     var body: some View {
         ZStack {
-            LinearGradient(
-                colors: [Color.soccerNavy.opacity(0.96), Color.soccerGreen.opacity(0.78)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            Color.soccerBackground
+                .ignoresSafeArea()
 
             ScrollView {
                 VStack(spacing: 22) {
                     VStack(spacing: 10) {
                         Image(systemName: "figure.soccer")
                             .font(.system(size: 54))
-                            .foregroundStyle(Color.soccerLime)
+                            .foregroundStyle(Color.soccerAccent)
                         Text("Welcome to Futbol Elite")
                             .font(.largeTitle)
                             .fontWeight(.heavy)
                             .multilineTextAlignment(.center)
                         Text("Here's what you're getting.")
                             .font(.title3)
-                            .foregroundStyle(Color.soccerCream.opacity(0.85))
+                            .foregroundStyle(Color.soccerText.opacity(0.65))
                     }
                     .padding(.top, 20)
 
@@ -157,9 +154,9 @@ private struct AppBenefitsView: View {
                             HStack(spacing: 16) {
                                 Image(systemName: benefit.icon)
                                     .font(.title2)
-                                    .foregroundStyle(Color.soccerNavy)
+                                    .foregroundStyle(.white)
                                     .frame(width: 40, height: 40)
-                                    .background(Color.soccerLime, in: Circle())
+                                    .background(Color.soccerAccent, in: Circle())
 
                                 VStack(alignment: .leading, spacing: 3) {
                                     Text(benefit.title)
@@ -167,12 +164,12 @@ private struct AppBenefitsView: View {
                                         .fontWeight(.bold)
                                     Text(benefit.detail)
                                         .font(.subheadline)
-                                        .foregroundStyle(Color.soccerCream.opacity(0.8))
+                                        .foregroundStyle(Color.soccerText.opacity(0.7))
                                 }
                                 Spacer(minLength: 0)
                             }
                             .padding(14)
-                            .background(Color.soccerCream.opacity(0.1), in: RoundedRectangle(cornerRadius: 16))
+                            .background(Color.soccerSurface, in: RoundedRectangle(cornerRadius: 16))
                         }
                     }
 
@@ -182,8 +179,8 @@ private struct AppBenefitsView: View {
                             .fontWeight(.bold)
                             .frame(maxWidth: .infinity)
                             .padding()
-                            .background(Color.soccerLime)
-                            .foregroundStyle(Color.soccerNavy)
+                            .background(Color.soccerAccent)
+                            .foregroundStyle(.white)
                             .clipShape(.rect(cornerRadius: 16))
                     }
                     .padding(.top, 8)
@@ -191,7 +188,7 @@ private struct AppBenefitsView: View {
                 .padding(24)
             }
         }
-        .foregroundStyle(Color.soccerCream)
+        .foregroundStyle(Color.soccerText)
     }
 }
 
@@ -200,12 +197,8 @@ private struct WelcomeStartView: View {
 
     var body: some View {
         ZStack {
-            LinearGradient(
-                colors: [Color.soccerGreen.opacity(0.85), Color.soccerNavy],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
+            Color.soccerBackground
+                .ignoresSafeArea()
 
             // A drawn stick-figure pictogram instead of a real player's
             // photo, so the splash screen isn't tied to any one athlete.
@@ -213,38 +206,26 @@ private struct WelcomeStartView: View {
                 .resizable()
                 .scaledToFit()
                 .frame(width: 460, height: 460)
-                .foregroundStyle(Color.soccerLime.opacity(0.18))
+                .foregroundStyle(Color.soccerAccent.opacity(0.08))
                 .offset(y: -60)
                 .ignoresSafeArea()
-
-            LinearGradient(
-                colors: [
-                    Color.soccerNavy.opacity(0.20),
-                    Color.soccerGreen.opacity(0.55),
-                    Color.soccerNavy.opacity(0.96),
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
 
             VStack(spacing: 18) {
                 Spacer()
 
                 Image(systemName: "figure.soccer")
                     .font(.system(size: 64, weight: .semibold))
-                    .foregroundStyle(Color.soccerLime)
-                    .shadow(color: .black.opacity(0.35), radius: 10, y: 5)
+                    .foregroundStyle(Color.soccerAccent)
 
                 Text("Futbol Elite")
                     .font(.system(size: 46, weight: .heavy, design: .rounded))
                     .multilineTextAlignment(.center)
-                    .foregroundStyle(Color.soccerCream)
+                    .foregroundStyle(Color.soccerText)
 
                 Text("Train smarter. Play stronger.")
                     .font(.title3)
                     .fontWeight(.semibold)
-                    .foregroundStyle(Color.soccerCream.opacity(0.85))
+                    .foregroundStyle(Color.soccerText.opacity(0.65))
 
                 Button(action: startTraining) {
                     Label("Start Training", systemImage: "play.fill")
@@ -252,10 +233,10 @@ private struct WelcomeStartView: View {
                         .fontWeight(.bold)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 17)
-                        .background(Color.soccerLime)
-                        .foregroundStyle(Color.soccerNavy)
+                        .background(Color.soccerAccent)
+                        .foregroundStyle(.white)
                         .clipShape(.rect(cornerRadius: 18))
-                        .shadow(color: .black.opacity(0.3), radius: 10, y: 5)
+                        .shadow(color: Color.soccerAccent.opacity(0.35), radius: 10, y: 5)
                 }
                 .padding(.top, 14)
                 .padding(.horizontal, 28)
@@ -270,7 +251,6 @@ struct PlayerSignInView: View {
     @AppStorage("playerUsername") private var savedUsername = ""
     @AppStorage("playerPosition") private var savedPosition = ""
     @AppStorage("playerBestSkill") private var savedBestSkill = ""
-    @AppStorage("favoriteTeam") private var favoriteTeam = ""
 
     @State private var username = ""
     @State private var position = ""
@@ -296,17 +276,12 @@ struct PlayerSignInView: View {
         !username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             && !position.isEmpty
             && !bestSkill.isEmpty
-            && !favoriteTeam.isEmpty
     }
 
     var body: some View {
         ZStack {
-            LinearGradient(
-                colors: [Color.soccerNavy.opacity(0.96), Color.soccerGreen.opacity(0.78)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            Color.soccerBackground
+                .ignoresSafeArea()
 
             ScrollView {
                 VStack(spacing: 24) {
@@ -314,7 +289,7 @@ struct PlayerSignInView: View {
 
                     Image(systemName: "figure.soccer")
                         .font(.system(size: 72))
-                        .foregroundStyle(Color.soccerLime)
+                        .foregroundStyle(Color.soccerAccent)
 
                     Text("Create Your Player")
                         .font(.largeTitle)
@@ -324,26 +299,8 @@ struct PlayerSignInView: View {
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .padding()
-                        .background(Color.soccerCream.opacity(0.14))
+                        .background(Color.soccerSurface)
                         .clipShape(.rect(cornerRadius: 12))
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Pick your favorite team")
-                            .font(.headline)
-
-                        Picker("Favorite team", selection: $favoriteTeam) {
-                            Text("Select a team").tag("")
-                            ForEach(FavoriteTeam.allCases) { team in
-                                Text(team.rawValue).tag(team.rawValue)
-                            }
-                        }
-                        .pickerStyle(.menu)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding()
-                        .background(Color.soccerCream.opacity(0.14))
-                        .clipShape(.rect(cornerRadius: 12))
-
-                    }
 
                     VStack(alignment: .leading, spacing: 8) {
                         Text("What position do you play?")
@@ -358,7 +315,7 @@ struct PlayerSignInView: View {
                         .pickerStyle(.menu)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding()
-                        .background(Color.soccerCream.opacity(0.14))
+                        .background(Color.soccerSurface)
                         .clipShape(.rect(cornerRadius: 12))
                     }
 
@@ -375,13 +332,13 @@ struct PlayerSignInView: View {
                         .pickerStyle(.menu)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding()
-                        .background(Color.soccerCream.opacity(0.14))
+                        .background(Color.soccerSurface)
                         .clipShape(.rect(cornerRadius: 12))
                     }
 
                     Button {
                         let trimmed = username.trimmingCharacters(in: .whitespacesAndNewlines)
-                        guard !trimmed.isEmpty, !position.isEmpty, !bestSkill.isEmpty, !favoriteTeam.isEmpty else {
+                        guard !trimmed.isEmpty, !position.isEmpty, !bestSkill.isEmpty else {
                             Haptics.soft()
                             return
                         }
@@ -402,8 +359,8 @@ struct PlayerSignInView: View {
                             .fontWeight(.bold)
                             .frame(maxWidth: .infinity)
                             .padding()
-                            .background(canSignIn ? Color.soccerLime : Color.gray)
-                            .foregroundStyle(Color.soccerNavy)
+                            .background(canSignIn ? Color.soccerAccent : Color.gray)
+                            .foregroundStyle(.white)
                             .clipShape(.rect(cornerRadius: 14))
                     }
                     .disabled(!canSignIn)
@@ -412,7 +369,7 @@ struct PlayerSignInView: View {
                 .padding(24)
             }
         }
-        .foregroundStyle(Color.soccerCream)
+        .foregroundStyle(Color.soccerText)
         .overlay(alignment: .top) {
             if showConfetti {
                 ConfettiView()
@@ -426,9 +383,6 @@ struct PlayerSignInView: View {
 struct Soccer_TrainingApp: App {
     init() {
         DrillTimerLiveActivity.shared.configure()
-        #if DEBUG
-        UserDefaults.standard.register(defaults: ["isProMember": true])
-        #endif
         Self.migrateCategoryProgressIfNeeded()
     }
 
@@ -470,7 +424,7 @@ struct Soccer_TrainingApp: App {
     var body: some Scene {
         WindowGroup {
             LaunchContainerView()
-                .preferredColorScheme(.dark)
+                .preferredColorScheme(.light)
         }
     }
 }

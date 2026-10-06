@@ -52,7 +52,7 @@ final class ScreenRecordingManager: NSObject, ObservableObject {
         try? audioSession.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetoothHFP])
         try? audioSession.setActive(true, options: [])
 
-        recorder.isMicrophoneEnabled = true
+
         recorder.isCameraEnabled = isCameraEnabled
         recorder.cameraPosition = cameraPosition
         recorder.startRecording { [weak self] error in
