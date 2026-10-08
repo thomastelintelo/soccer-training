@@ -119,24 +119,33 @@ final class TeamCloudKitStore {
         }
     }
 
-    func assign(title: String, details: String, equipment: String, memberID: UUID?) async {
+    func assign(title: String, details: String, equipment: String, durationMinutes: Int, playerDrillName: String? = nil, memberID: UUID?) async {
         await mutateCurrent { workspace in
             workspace.assignments.insert(
                 TeamAssignment(
                     id: UUID(), title: title, details: details, equipment: equipment,
-                    assignedMemberID: memberID, createdAt: .now
+                    assignedMemberID: memberID, createdAt: .now, durationMinutes: durationMinutes,
+                    playerDrillName: playerDrillName
                 ),
                 at: 0
             )
         }
     }
 
-    func createCustomDrill(name: String, category: String, instructions: String, equipment: String) async {
+    func removeAssignment(_ id: UUID) async {
+        await mutateCurrent { $0.assignments.removeAll { $0.id == id } }
+    }
+
+    func removeCustomDrill(_ id: UUID) async {
+        await mutateCurrent { $0.customDrills.removeAll { $0.id == id } }
+    }
+
+    func createCustomDrill(name: String, category: String, instructions: String, equipment: String, durationMinutes: Int) async {
         await mutateCurrent { workspace in
             workspace.customDrills.insert(
                 TeamCustomDrill(
                     id: UUID(), name: name, category: category,
-                    instructions: instructions, equipment: equipment
+                    instructions: instructions, equipment: equipment, durationMinutes: durationMinutes
                 ),
                 at: 0
             )

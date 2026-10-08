@@ -16,6 +16,9 @@ struct TeamAssignment: Codable, Identifiable, Hashable {
     var equipment: String
     var assignedMemberID: UUID?
     var createdAt: Date
+    var durationMinutes: Int? = nil
+    /// Set when the coach picked a drill from the player Drills tab.
+    var playerDrillName: String? = nil
 }
 
 struct TeamCustomDrill: Codable, Identifiable, Hashable {
@@ -24,6 +27,7 @@ struct TeamCustomDrill: Codable, Identifiable, Hashable {
     var category: String
     var instructions: String
     var equipment: String
+    var durationMinutes: Int? = nil
 }
 
 struct CoachScheduleItem: Codable, Identifiable, Hashable {

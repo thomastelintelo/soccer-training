@@ -183,9 +183,17 @@ struct CoachTeamView: View {
                     }.buttonStyle(.borderedProminent)
 
                     Text("Recent assignments").font(.title2.bold())
-                    ForEach(team.assignments.prefix(8)) { assignment in
+                    ForEach(team.assignments.prefix(20)) { assignment in
                         VStack(alignment: .leading, spacing: 5) {
-                            Text(assignment.title).font(.headline)
+                            HStack {
+                                Text(assignment.title).font(.headline)
+                                Spacer()
+                                Button(role: .destructive) {
+                                    Task { await store.removeAssignment(assignment.id) }
+                                } label: { Image(systemName: "trash") }
+                                    .buttonStyle(.bordered)
+                                    .accessibilityLabel("Delete \(assignment.title)")
+                            }
                             Text(assignment.assignedMemberID.flatMap { id in team.members.first(where: { $0.id == id })?.name } ?? "Whole team")
                                 .font(.caption.bold()).foregroundStyle(Color.soccerAccent)
                             if !assignment.details.isEmpty { Text(assignment.details).font(.subheadline) }
@@ -211,6 +219,7 @@ struct PlayerTeamView: View {
     @AppStorage("playerPosition") private var playerPosition = ""
     @AppStorage("playerTeamCode") private var teamCode = ""
     @AppStorage("playerTeamMemberID") private var memberIDText = ""
+    @AppStorage("totalPoints") private var totalPoints = 0
     @State private var store = TeamCloudKitStore()
     @State private var isConfirmingLeave = false
 
@@ -259,6 +268,13 @@ struct PlayerTeamView: View {
         }
     }
 
+    /// Real player drill this assignment maps to, if any (older assignments match by title).
+    private func playerDrillName(for assignment: TeamAssignment) -> String? {
+        if let name = assignment.playerDrillName { return name }
+        let known = DrillPresentation.categories.contains { $0.drills.contains(assignment.title) }
+        return known ? assignment.title : nil
+    }
+
     private var assignmentsView: some View {
         Group {
             if let team = store.workspace {
@@ -276,6 +292,17 @@ struct PlayerTeamView: View {
                             Text(drill.title).font(.title3.bold())
                             if !drill.details.isEmpty { Text(drill.details) }
                             if !drill.equipment.isEmpty { Label(drill.equipment, systemImage: "shippingbox.fill").font(.caption).foregroundStyle(.secondary) }
+                            NavigationLink {
+                                if let name = playerDrillName(for: drill) {
+                                    DrillTimerView(drill: Drill(name: name), totalPoints: $totalPoints)
+                                } else {
+                                    AssignedDrillTimerView(title: drill.title, details: drill.details, minutes: drill.durationMinutes ?? 10)
+                                }
+                            } label: {
+                                Label(playerDrillName(for: drill) != nil ? "Start Drill" : "Start \(drill.durationMinutes ?? 10) min Timer", systemImage: "timer")
+                                    .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(.borderedProminent)
                         }.frame(maxWidth: .infinity, alignment: .leading).padding()
                             .background(Color.soccerSurface, in: RoundedRectangle(cornerRadius: 18))
                     }
@@ -436,6 +463,7 @@ struct CoachCustomDrillsView: View {
     @State private var category = "Shooting"
     @State private var instructions = ""
     @State private var equipment = ""
+    @State private var durationMinutes = 10
 
     var body: some View {
         NavigationStack {
@@ -447,10 +475,11 @@ struct CoachCustomDrillsView: View {
                         TextField("Drill name", text: $name)
                         Picker("Category", selection: $category) { ForEach(CoachDrillCategory.allCases) { Text($0.rawValue).tag($0.rawValue) } }
                         TextField("Equipment", text: $equipment)
+                        Stepper("Timer: \(durationMinutes) min", value: $durationMinutes, in: 1...90)
                         TextField("Instructions", text: $instructions, axis: .vertical).lineLimit(3...7)
                         Button("Save Custom Drill", systemImage: "plus.circle.fill") {
                             Task {
-                                await store.createCustomDrill(name: name, category: category, instructions: instructions, equipment: equipment)
+                                await store.createCustomDrill(name: name, category: category, instructions: instructions, equipment: equipment, durationMinutes: durationMinutes)
                                 if store.errorMessage == nil { name = ""; instructions = ""; equipment = ""; Haptics.success() }
                             }
                         }.disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || instructions.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -459,9 +488,14 @@ struct CoachCustomDrillsView: View {
                         ForEach(store.workspace?.customDrills ?? []) { drill in
                             VStack(alignment: .leading, spacing: 5) {
                                 Text(drill.name).font(.headline)
-                                Text(drill.category).font(.caption.bold()).foregroundStyle(Color.soccerAccent)
+                                Text("\(drill.category) • \(drill.durationMinutes ?? 15) min").font(.caption.bold()).foregroundStyle(Color.soccerAccent)
                                 Text(drill.instructions).font(.subheadline)
                             }
+                        }
+                        .onDelete { offsets in
+                            let drills = store.workspace?.customDrills ?? []
+                            let ids = offsets.map { drills[$0].id }
+                            Task { for id in ids { await store.removeCustomDrill(id) } }
                         }
                     }
                 }
@@ -482,12 +516,13 @@ private enum TrainingAssignmentType: String, CaseIterable, Identifiable {
 private struct AssignTrainingSheet: View {
     @Environment(\.dismiss) private var dismiss
     let store: TeamCloudKitStore
-    @State private var selectedDrillID = CoachDrillLibrary.allDrills.first.map { "built-in-\($0.id)" } ?? ""
+    @State private var selectedDrillID = DrillPresentation.categories.first?.drills.sorted().first.map { "player-\($0)" } ?? ""
     @State private var targetID: String
     @State private var assignmentType = TrainingAssignmentType.drill
     @State private var taskTitle = ""
     @State private var taskInstructions = ""
     @State private var taskEquipment = ""
+    @State private var durationMinutes = 10
 
     init(store: TeamCloudKitStore, initialTargetID: String) {
         self.store = store
@@ -549,6 +584,9 @@ private struct AssignTrainingSheet: View {
                     if let selectedOption {
                         Section("What the player will see") {
                             Text(selectedOption.instructions)
+                            if !selectedDrillID.hasPrefix("player-") {
+                                Stepper("Timer: \(durationMinutes) min", value: $durationMinutes, in: 1...90)
+                            }
                             Label(selectedOption.equipment, systemImage: "shippingbox.fill")
                                 .foregroundStyle(.secondary)
                         }
@@ -559,8 +597,12 @@ private struct AssignTrainingSheet: View {
                         TextField("Instructions", text: $taskInstructions, axis: .vertical)
                             .lineLimit(3...6)
                         TextField("Equipment (optional)", text: $taskEquipment)
+                        Stepper("Timer: \(durationMinutes) min", value: $durationMinutes, in: 1...90)
                     }
                 }
+            }
+            .onChange(of: selectedDrillID, initial: true) { _, _ in
+                if let selectedOption { durationMinutes = selectedOption.durationMinutes }
             }
             .navigationTitle("Assign Training")
             .toolbar {
@@ -595,6 +637,9 @@ private struct AssignTrainingSheet: View {
             title: assignment.title,
             details: assignment.details,
             equipment: assignment.equipment,
+            durationMinutes: durationMinutes,
+            playerDrillName: assignmentType == .drill && selectedDrillID.hasPrefix("player-")
+                ? String(selectedDrillID.dropFirst("player-".count)) : nil,
             memberID: UUID(uuidString: targetID)
         )
         if store.errorMessage == nil {
@@ -613,15 +658,17 @@ struct CoachDrillOption: Identifiable, Hashable {
     let durationMinutes: Int
 
     static func options(customDrills: [TeamCustomDrill]) -> [CoachDrillOption] {
-        let builtIn = CoachDrillLibrary.allDrills.map { drill in
-            CoachDrillOption(
-                id: "built-in-\(drill.id)",
-                name: drill.name,
-                category: drill.category.rawValue,
-                instructions: "\(drill.setup) Coaching focus: \(drill.coachingFocus)",
-                equipment: drill.equipment.joined(separator: ", "),
-                durationMinutes: drill.durationMinutes
-            )
+        let playerDrills = DrillPresentation.categories.flatMap { category in
+            category.drills.sorted().map { name in
+                CoachDrillOption(
+                    id: "player-\(name)",
+                    name: name,
+                    category: category.name,
+                    instructions: "Do the \(name) drill from the Drills tab. Focus: \(DrillPresentation.focus(for: category.name))",
+                    equipment: DrillPresentation.equipment(for: name, category: category.name),
+                    durationMinutes: max(1, Int((Double(DrillTimerView.duration(for: name)) / 60).rounded(.up)))
+                )
+            }
         }
         let custom = customDrills.map { drill in
             CoachDrillOption(
@@ -630,10 +677,10 @@ struct CoachDrillOption: Identifiable, Hashable {
                 category: drill.category,
                 instructions: drill.instructions,
                 equipment: drill.equipment,
-                durationMinutes: 15
+                durationMinutes: drill.durationMinutes ?? 15
             )
         }
-        return custom + builtIn
+        return custom + playerDrills
     }
 }
 
@@ -652,12 +699,17 @@ struct CoachDrillOptionPicker: View {
         }
     }
 
+    private var orderedCategories: [String] {
+        var seen = Set<String>()
+        return filteredOptions.map(\.category).filter { seen.insert($0).inserted }
+    }
+
     var body: some View {
         List {
-            ForEach(CoachDrillCategory.allCases) { category in
-                let categoryOptions = filteredOptions.filter { $0.category == category.rawValue }
+            ForEach(orderedCategories, id: \.self) { category in
+                let categoryOptions = filteredOptions.filter { $0.category == category }
                 if !categoryOptions.isEmpty {
-                    Section(category.rawValue) {
+                    Section(category) {
                         ForEach(categoryOptions) { option in
                             Button {
                                 selection = option.id
