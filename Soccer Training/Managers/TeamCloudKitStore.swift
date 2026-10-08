@@ -7,6 +7,9 @@ import Observation
 final class TeamCloudKitStore {
     private(set) var workspace: TeamWorkspace?
     private(set) var isLoading = false
+    /// The member ID the player actually joined with. Differs from the one
+    /// requested when the coach previously removed that ID from the team.
+    private(set) var joinedMemberID: UUID?
     var errorMessage: String?
 
     private let database = CKContainer.default().publicCloudDatabase
@@ -56,6 +59,10 @@ final class TeamCloudKitStore {
         await perform {
             let teamRecord = try await self.database.record(for: Self.recordID(for: normalizedCode))
             var workspace = try self.read(teamRecord)
+            // A coach-removed ID stays filtered out of the roster forever, so
+            // rejoining with it would never show up. Start a fresh identity.
+            let memberID = (workspace.removedMemberIDs ?? []).contains(memberID) ? UUID() : memberID
+            self.joinedMemberID = memberID
             let member = TeamMember(
                 id: memberID,
                 name: name.isEmpty ? "Player" : name,
@@ -65,12 +72,9 @@ final class TeamCloudKitStore {
                 points: 0
             )
 
-            let registeredMembers = try await self.registeredMembers(code: normalizedCode)
-            if !workspace.members.contains(where: { $0.id == memberID })
-                && !registeredMembers.contains(where: { $0.id == memberID }) {
-                try await self.saveMemberRegistration(member, code: normalizedCode)
-            }
+            try await self.saveMemberRegistration(member, code: normalizedCode)
 
+            let registeredMembers = try await self.registeredMembers(code: normalizedCode)
             Self.merge(registeredMembers + [member], into: &workspace)
             self.workspace = workspace
         }
@@ -219,8 +223,20 @@ final class TeamCloudKitStore {
     private func saveMemberRegistration(_ member: TeamMember, code: String) async throws {
         let occupiedResults = try await database.records(
             for: (0..<Self.maximumTeamSize).map { Self.memberRecordID(code: code, slot: $0) },
-            desiredKeys: []
+            desiredKeys: ["member"]
         )
+
+        // Rejoining with the same ID refreshes the existing registration.
+        for case .success(let existing) in occupiedResults.values {
+            guard
+                let data = existing["member"] as? Data,
+                let saved = try? decoder.decode(TeamMember.self, from: data),
+                saved.id == member.id
+            else { continue }
+            existing["member"] = try encoder.encode(member) as CKRecordValue
+            _ = try await database.save(existing)
+            return
+        }
 
         for slot in 0..<Self.maximumTeamSize {
             let recordID = Self.memberRecordID(code: code, slot: slot)

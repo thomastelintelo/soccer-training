@@ -397,7 +397,7 @@ struct PlayerJoinTeamProfileCard: View {
             position: playerPosition,
             memberID: memberID
         ) {
-            memberIDText = memberID.uuidString
+            memberIDText = (store.joinedMemberID ?? memberID).uuidString
             teamCode = normalizedCode
             Haptics.success()
             isShowingTeam = true
