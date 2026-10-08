@@ -2,8 +2,8 @@
 // Per-category XP and training-minute totals, keyed by category name (e.g.
 // "Shooting", "Soccer IQ") so every skill category — including ones added
 // later — earns and displays progress uniformly, without needing its own
-// named @AppStorage property. Persisted the same pipe-delimited way as
-// PlayerUpgrade's "id:level|id:level" encoding.
+// named @AppStorage property. Persisted in a pipe-delimited
+// "key:value|key:value" encoding.
 
 import Foundation
 

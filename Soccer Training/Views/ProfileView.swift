@@ -1,5 +1,5 @@
 // ProfileView.swift
-// The Profile tab: level, stats, achievements, team choice, and sign out.
+// The Profile tab: level, stats, achievements, and sign out.
 
 import ReplayKit
 import SwiftUI
@@ -10,9 +10,9 @@ struct ProfileView: View {
     let position: String
     let bestSkill: String
     @Binding var totalPoints: Int
-    @AppStorage("favoriteTeam") private var favoriteTeam = ""
     @AppStorage("hasCompletedOnboarding") private var isSignedIn = false
     @AppStorage("profilePhoto") private var profilePhoto = ""
+    @AppStorage("playerAge") private var playerAge = 0
     @AppStorage("totalTrainingMinutes") private var totalTrainingMinutes = 0
     @AppStorage("playerXP") private var playerXP = 0
     @AppStorage("categoryXP") private var categoryXPText = ""
@@ -25,8 +25,6 @@ struct ProfileView: View {
     @AppStorage("trainingStreak") private var trainingStreak = 0
     @AppStorage("rewardBoxes") private var rewardBoxes = 0
     @AppStorage("rewardBoxFixVersion") private var rewardBoxFixVersion = 0
-    @AppStorage("ownedPlayerIDs") private var ownedPlayerIDs = ""
-    @AppStorage("playerUpgradeLevels") private var upgradeLevelsText = ""
     @AppStorage("seenAchievements") private var seenAchievementsText = ""
     @State private var rewardBoxMessage = ""
     @State private var isShowingSignOutConfirmation = false
@@ -35,13 +33,6 @@ struct ProfileView: View {
     @State private var justUnlocked: Set<String> = []
     @ObservedObject private var screenRecorder = ScreenRecordingManager.shared
     #if DEBUG
-    @AppStorage("startingLineupSelections") private var lineupSelectionText = ""
-    @AppStorage("playerShopDailyStockV7") private var shopStockText = ""
-    @AppStorage("playerShopLastDailyRestockV7") private var shopLastRestock = 0.0
-    @AppStorage("rarePlayerStockIDs") private var rarePlayerStockIDs = ""
-    @AppStorage("rarePlayerLastDailyRefreshV2") private var rarePlayerLastRefresh = 0.0
-    @AppStorage("cashPlayerStockIDsV4") private var cashPlayerStockIDs = ""
-    @AppStorage("cashPlayerLastRefreshV4") private var cashPlayerLastRefresh = 0.0
     @AppStorage("totalPasses") private var totalPasses = 0
     @AppStorage("lastTrainingDate") private var lastTrainingDate = ""
     @AppStorage("completedWeeklyTasks") private var completedWeeklyTasks = ""
@@ -67,30 +58,23 @@ struct ProfileView: View {
     private var levelTitle: String { playerProgress.levelTitle }
     private var progress: Double { playerProgress.progressToNextLevel }
 
-    private var ownedPlayerCount: Int {
-        ownedPlayerIDs.split(separator: "|").count
-    }
-
-    private var hasAnyUpgrade: Bool {
-        !upgradeLevelsText.isEmpty
-    }
-
     private var achievements: [Achievement] {
         [
             Achievement(title: "First Goal", detail: "Score your first training goal", systemImage: "soccerball", isUnlocked: totalGoals >= 1),
             Achievement(title: "Goal Getter", detail: "Score 50 training goals", systemImage: "scope", isUnlocked: totalGoals >= 50),
-            Achievement(title: "Getting Started", detail: "Complete 5 sessions", systemImage: "figure.run", isUnlocked: totalSessions >= 5),
-            Achievement(title: "Dedicated", detail: "Complete 25 sessions", systemImage: "figure.run.circle.fill", isUnlocked: totalSessions >= 25),
+            Achievement(title: "First Session", detail: "Complete your first training session", systemImage: "play.circle.fill", isUnlocked: totalSessions >= 1),
+            Achievement(title: "Session Starter", detail: "Complete 5 training sessions", systemImage: "figure.run", isUnlocked: totalSessions >= 5),
+            Achievement(title: "Session Regular", detail: "Complete 10 training sessions", systemImage: "calendar.badge.checkmark", isUnlocked: totalSessions >= 10),
+            Achievement(title: "Dedicated", detail: "Complete 25 training sessions", systemImage: "figure.run.circle.fill", isUnlocked: totalSessions >= 25),
+            Achievement(title: "Fifty Sessions", detail: "Complete 50 training sessions", systemImage: "medal.fill", isUnlocked: totalSessions >= 50),
+            Achievement(title: "Century Trainer", detail: "Complete 100 training sessions", systemImage: "trophy.fill", isUnlocked: totalSessions >= 100),
             Achievement(title: "On a Roll", detail: "Reach a 3-day streak", systemImage: "flame.fill", isUnlocked: trainingStreak >= 3),
             Achievement(title: "Unstoppable", detail: "Reach a 7-day streak", systemImage: "flame.circle.fill", isUnlocked: trainingStreak >= 7),
             Achievement(title: "Month Strong", detail: "Reach a 30-day streak", systemImage: "calendar.badge.clock", isUnlocked: trainingStreak >= 30),
             Achievement(title: "Point Collector", detail: "Hold 1,000 points", systemImage: "star.fill", isUnlocked: totalPoints >= 1_000),
             Achievement(title: "High Roller", detail: "Hold 10,000 points", systemImage: "star.circle.fill", isUnlocked: totalPoints >= 10_000),
             Achievement(title: "Level Five", detail: "Reach level 5", systemImage: "trophy.fill", isUnlocked: level >= 5),
-            Achievement(title: "Elite Trainer", detail: "Reach level 15", systemImage: "crown.fill", isUnlocked: level >= 15),
-            Achievement(title: "First Signing", detail: "Buy your first player", systemImage: "person.badge.plus", isUnlocked: ownedPlayerCount >= 1),
-            Achievement(title: "Full Starting XI", detail: "Own 11 players for a full lineup", systemImage: "person.3.fill", isUnlocked: ownedPlayerCount >= 11),
-            Achievement(title: "First Upgrade", detail: "Upgrade a player's stats", systemImage: "arrow.up.circle.fill", isUnlocked: hasAnyUpgrade),
+            Achievement(title: "Futbol Elite", detail: "Reach level 15", systemImage: "crown.fill", isUnlocked: level >= 15),
             Achievement(title: "Game Intelligence", detail: "Earn 200 Soccer IQ XP", systemImage: "brain.head.profile", isUnlocked: categoryProgress.xp(for: "Soccer IQ") >= 200),
         ]
     }
@@ -112,7 +96,7 @@ struct ProfileView: View {
     /// a fixed accent color. Only categories the player has actually trained in
     /// are displayed, so a new player doesn't see a wall of empty rings.
     private static let allCategories: [(title: String, color: Color)] = [
-        ("Shooting", .soccerGreen), ("Dribbling", .soccerLime), ("Passing", .soccerGold),
+        ("Shooting", .soccerAccent), ("Dribbling", .soccerAccentLight), ("Passing", .soccerGold),
         ("Control", .blue), ("First Touch", .teal), ("Technique", .pink),
         ("Speed & Finishing", .orange), ("Soccer IQ", .mint), ("Goalkeeping", .purple),
         ("Defense", .indigo), ("Plus Training", .cyan), ("Workout", .brown),
@@ -166,14 +150,14 @@ struct ProfileView: View {
                         } else {
                             Image(systemName: "person.crop.circle.fill")
                                 .font(.system(size: 100))
-                                .foregroundStyle(Color.soccerGreen)
+                                .foregroundStyle(Color.soccerAccent)
                         }
 
                         Image(systemName: "camera.fill")
                             .font(.headline)
                             .padding(9)
                             .foregroundStyle(.white)
-                            .background(Color.soccerGreen, in: Circle())
+                            .background(Color.soccerAccent, in: Circle())
                     }
                 }
                 .buttonStyle(.plain)
@@ -208,15 +192,15 @@ struct ProfileView: View {
                         Spacer()
                         Text("\(playerXP) XP")
                             .fontWeight(.bold)
-                            .foregroundStyle(Color.soccerGreen)
+                            .foregroundStyle(Color.soccerAccent)
                     }
 
                     ProgressView(value: progress)
-                        .tint(.blue)
+                        .tint(Color.soccerAccent)
 
                     Text("\(playerProgress.xpUntilNextLevel) XP until Level \(level + 1) • Reward: one reward box")
                         .font(.subheadline)
-                        .foregroundStyle(Color.soccerGreen)
+                        .foregroundStyle(Color.soccerAccent)
                 }
                 .padding()
                 .background(Color.soccerSurface)
@@ -225,6 +209,9 @@ struct ProfileView: View {
                 HStack(spacing: 12) {
                     profileCard(title: "Position", value: position)
                     profileCard(title: "Best Skill", value: bestSkill)
+                    if playerAge > 0 {
+                        profileCard(title: "Age", value: playerAge.formatted())
+                    }
                 }
 
                 VStack(alignment: .leading, spacing: 14) {
@@ -300,7 +287,7 @@ struct ProfileView: View {
                     if !rewardBoxMessage.isEmpty {
                         Label(rewardBoxMessage, systemImage: "checkmark.circle.fill")
                             .font(.headline)
-                            .foregroundStyle(Color.soccerGreen)
+                            .foregroundStyle(Color.soccerAccent)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -328,7 +315,7 @@ struct ProfileView: View {
                             }
                             Spacer()
                             Image(systemName: achievement.isUnlocked ? "checkmark.circle.fill" : "lock.fill")
-                                .foregroundStyle(achievement.isUnlocked ? Color.soccerGreen : Color.gray)
+                                .foregroundStyle(achievement.isUnlocked ? Color.soccerAccent : Color.gray)
                         }
                         .scaleEffect(justUnlocked.contains(achievement.id) ? 1.04 : 1)
                         .animation(.spring(response: 0.45, dampingFraction: 0.65), value: justUnlocked)
@@ -345,7 +332,7 @@ struct ProfileView: View {
                     )
                     .font(.title2)
                     .fontWeight(.bold)
-                    .foregroundStyle(screenRecorder.isRecording ? Color.red : Color.soccerLime)
+                    .foregroundStyle(screenRecorder.isRecording ? Color.red : Color.soccerAccent)
                     .symbolEffect(.pulse, isActive: screenRecorder.isRecording)
 
                     Text(
@@ -357,7 +344,7 @@ struct ProfileView: View {
                     .foregroundStyle(.secondary)
 
                     Toggle("Show me on camera", isOn: $screenRecorder.isCameraEnabled)
-                        .tint(Color.soccerGreen)
+                        .tint(Color.soccerAccent)
                         .disabled(screenRecorder.isRecording)
 
                     if screenRecorder.isCameraEnabled {
@@ -377,7 +364,7 @@ struct ProfileView: View {
                     .fontWeight(.bold)
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(screenRecorder.isRecording ? Color.red : Color.soccerGreen)
+                    .background(screenRecorder.isRecording ? Color.red : Color.soccerAccent)
                     .foregroundStyle(Color.white)
                     .clipShape(.rect(cornerRadius: 14))
                 }
@@ -396,43 +383,6 @@ struct ProfileView: View {
                     Text(screenRecorder.errorMessage ?? "")
                 }
 
-                VStack(alignment: .leading, spacing: 12) {
-                    Label("Choose Your Team", systemImage: "shield.fill")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .foregroundStyle(Color.soccerLime)
-
-                    Text("Your choice changes the colors across the entire app.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-
-                    Picker("Favorite team", selection: $favoriteTeam) {
-                        Text("Select a team").tag("")
-                        ForEach(TeamLeague.allCases) { league in
-                            Section(league.rawValue) {
-                                ForEach(FavoriteTeam.teams(in: league)) { team in
-                                    Text(team.displayName).tag(team.rawValue)
-                                }
-                            }
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .tint(Color.soccerLime)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                    if let team = FavoriteTeam(rawValue: favoriteTeam) {
-                        HStack(spacing: 12) {
-                            ClubCrestView(team: team, size: 44)
-
-                            Text(team.displayName)
-                                .fontWeight(.bold)
-                        }
-                    }
-                }
-                .padding()
-                .background(Color.soccerSurface)
-                .clipShape(.rect(cornerRadius: 16))
-
                 #if DEBUG
                 VStack(alignment: .leading, spacing: 12) {
                     Label("Developer Tools", systemImage: "wrench.and.screwdriver.fill")
@@ -440,18 +390,26 @@ struct ProfileView: View {
                         .fontWeight(.heavy)
                         .foregroundStyle(Color.orange)
 
-                    Text("Debug-only resets. Not shown in release builds.")
+                    Text("Debug-only tools. Not shown in release builds.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
 
+                    Text("Add Points")
+                        .font(.subheadline)
+                        .fontWeight(.bold)
+
+                    HStack(spacing: 10) {
+                        ForEach([100, 500, 1_000], id: \.self) { amount in
+                            Button("+\(amount)") {
+                                addPoints(amount)
+                            }
+                            .buttonStyle(.bordered)
+                            .frame(maxWidth: .infinity)
+                        }
+                    }
+
                     Button("Reset Points", role: .destructive) {
                         resetPoints()
-                    }
-                    .buttonStyle(.bordered)
-                    .frame(maxWidth: .infinity)
-
-                    Button("Reset Player & Team", role: .destructive) {
-                        resetPlayerAndTeam()
                     }
                     .buttonStyle(.bordered)
                     .frame(maxWidth: .infinity)
@@ -465,7 +423,7 @@ struct ProfileView: View {
                     if !devResetMessage.isEmpty {
                         Label(devResetMessage, systemImage: "checkmark.circle.fill")
                             .font(.subheadline)
-                            .foregroundStyle(Color.soccerGreen)
+                            .foregroundStyle(Color.soccerAccent)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -475,19 +433,6 @@ struct ProfileView: View {
                 #endif
 
                 NavigationLink {
-                    MyTeamView()
-                } label: {
-                    Label("My Team", systemImage: "person.3.fill")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.soccerSurface)
-                        .foregroundStyle(Color.soccerCream)
-                        .clipShape(.rect(cornerRadius: 14))
-                }
-
-                NavigationLink {
                     LeaderboardsView(username: username, totalPoints: totalPoints)
                 } label: {
                     Label("Leaderboards", systemImage: "trophy.fill")
@@ -495,8 +440,8 @@ struct ProfileView: View {
                         .fontWeight(.bold)
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(Color.soccerGreen)
-                        .foregroundStyle(Color.soccerCream)
+                        .background(Color.soccerAccent)
+                        .foregroundStyle(.white)
                         .clipShape(.rect(cornerRadius: 14))
                 }
 
@@ -512,8 +457,8 @@ struct ProfileView: View {
             }
             .padding()
         }
-        .background(Color.soccerNavy)
-        .foregroundStyle(Color.soccerCream)
+        .background(SoccerBackgroundView())
+        .foregroundStyle(Color.soccerText)
         .navigationTitle("Profile")
         .onAppear {
             if rewardBoxFixVersion < 1 {
@@ -545,28 +490,20 @@ struct ProfileView: View {
             }
             Button("Cancel", role: .cancel) { }
         } message: {
-            Text("Your points, players, training progress, and team choice will stay saved.")
+            Text("Your points and training progress will stay saved.")
         }
     }
 
     #if DEBUG
+    private func addPoints(_ amount: Int) {
+        totalPoints += amount
+        devResetMessage = "Added \(amount) points. New balance is \(totalPoints)."
+        Haptics.success()
+    }
+
     private func resetPoints() {
         totalPoints = 0
         devResetMessage = "Points reset to 0."
-        Haptics.soft()
-    }
-
-    private func resetPlayerAndTeam() {
-        ownedPlayerIDs = ""
-        lineupSelectionText = ""
-        upgradeLevelsText = ""
-        shopStockText = ""
-        shopLastRestock = 0
-        rarePlayerStockIDs = ""
-        rarePlayerLastRefresh = 0
-        cashPlayerStockIDs = ""
-        cashPlayerLastRefresh = 0
-        devResetMessage = "Player roster and shop stock reset."
         Haptics.soft()
     }
 
@@ -607,13 +544,13 @@ struct ProfileView: View {
             Text(rating.formatted())
                 .font(.title)
                 .fontWeight(.heavy)
-                .foregroundStyle(Color.soccerLime)
+                .foregroundStyle(Color.soccerAccent)
             Text(title)
                 .font(.subheadline)
                 .fontWeight(.bold)
         }
         .frame(maxWidth: .infinity, minHeight: 82)
-        .background(Color.soccerNavy.opacity(0.8), in: RoundedRectangle(cornerRadius: 14))
+        .background(Color.soccerSurfaceStrong, in: RoundedRectangle(cornerRadius: 14))
     }
 
     private func profileCard(title: String, value: String) -> some View {

@@ -12,7 +12,6 @@ struct HomeDashboardView: View {
     @AppStorage("completedWeeklyTasks") private var completedWeeklyTasks = ""
     @AppStorage("completedWeeklyDays") private var completedWeeklyDays = ""
     @AppStorage("weeklyProgressStart") private var weeklyProgressStart = 0.0
-    @AppStorage("favoriteTeam") private var favoriteTeam = ""
     @AppStorage("weeklyDrillSubstitutions") private var substitutionText = ""
     @AppStorage("totalTrainingMinutes") private var totalTrainingMinutes = 0
     @AppStorage("trainingStreak") private var trainingStreak = 0
@@ -107,7 +106,7 @@ struct HomeDashboardView: View {
             .clipShape(.rect(cornerRadius: 12))
             .overlay {
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.soccerCream.opacity(0.25), lineWidth: 1)
+                    .stroke(Color.soccerText.opacity(0.1), lineWidth: 1)
             }
     }
 
@@ -118,13 +117,13 @@ struct HomeDashboardView: View {
     ) -> some View {
         VStack(spacing: 6) {
             Image(systemName: systemImage)
-                .foregroundStyle(Color.soccerLime)
+                .foregroundStyle(Color.soccerAccent)
             Text(value)
                 .font(.headline)
                 .fontWeight(.heavy)
             Text(title)
                 .font(.caption)
-                .foregroundStyle(Color.soccerCream.opacity(0.72))
+                .foregroundStyle(Color.soccerText.opacity(0.6))
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 14)
@@ -161,7 +160,7 @@ struct HomeDashboardView: View {
 
     var body: some View {
         ZStack {
-            Color.soccerNavy
+            SoccerBackgroundView()
                 .ignoresSafeArea()
 
             ScrollView {
@@ -171,26 +170,27 @@ struct HomeDashboardView: View {
                             Label("PRO TRAINING", systemImage: "figure.soccer")
                                 .font(.headline)
                                 .fontWeight(.heavy)
-                                .foregroundStyle(Color.soccerNavy)
+                                .foregroundStyle(.white)
 
                             Spacer()
 
                             Text("NEW")
                                 .font(.caption)
                                 .fontWeight(.black)
+                                .foregroundStyle(Color.soccerAccent)
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 6)
-                                .background(Color.soccerNavy, in: Capsule())
+                                .background(.white, in: Capsule())
                         }
 
                         Text("Train with purpose.")
                             .font(.system(size: 32, weight: .heavy, design: .rounded))
-                            .foregroundStyle(Color.soccerNavy)
+                            .foregroundStyle(.white)
 
                         Text("Longer sessions, coaching tips, equipment lists, and bigger rewards are ready in the Drills tab.")
                             .font(.subheadline)
                             .fontWeight(.semibold)
-                            .foregroundStyle(Color.soccerNavy.opacity(0.78))
+                            .foregroundStyle(.white.opacity(0.85))
 
                         HStack(spacing: 10) {
                             Label("\(totalTrainingMinutes) min trained", systemImage: "timer")
@@ -198,53 +198,26 @@ struct HomeDashboardView: View {
                         }
                         .font(.caption)
                         .fontWeight(.bold)
-                        .foregroundStyle(Color.soccerNavy)
+                        .foregroundStyle(.white)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(20)
                     .background(
                         LinearGradient(
-                            colors: [Color.soccerLime, Color.soccerGreen],
+                            colors: [Color.soccerAccentLight, Color.soccerAccent],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         ),
                         in: RoundedRectangle(cornerRadius: 24)
                     )
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 24)
-                            .stroke(Color.white.opacity(0.55), lineWidth: 2)
-                    }
-
-                    if let team = FavoriteTeam(rawValue: favoriteTeam) {
-                        HStack(spacing: 14) {
-                            ClubCrestView(team: team, size: 58)
-                            Text(team.displayName)
-                                .font(.system(size: 36, weight: .heavy, design: .rounded))
-                                .minimumScaleFactor(0.65)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 34)
-                            .background {
-                                LinearGradient(
-                                    colors: [team.primaryColor, team.darkColor],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            }
-                            .clipShape(.rect(cornerRadius: 22))
-                            .overlay {
-                                RoundedRectangle(cornerRadius: 22)
-                                    .stroke(team.highlightColor, lineWidth: 3)
-                            }
-                    }
 
                     Text("Points: \(totalPoints)")
                         .font(.title)
                         .fontWeight(.bold)
-                        .foregroundStyle(Color.soccerGreen)
+                        .foregroundStyle(.white)
                         .padding(.horizontal, 20)
                         .padding(.vertical, 10)
-                        .background(Color.soccerNavy.opacity(0.92))
+                        .background(Color.soccerAccent)
                         .clipShape(.capsule)
 
                     Text("Welcome, \(username)!")
@@ -254,7 +227,7 @@ struct HomeDashboardView: View {
 
                     Text("\(position) • Best at \(bestSkill)")
                         .font(.headline)
-                        .foregroundStyle(Color.soccerCream.opacity(0.78))
+                        .foregroundStyle(Color.soccerText.opacity(0.7))
 
                     HStack(spacing: 10) {
                         Image(systemName: "flame.fill")
@@ -268,7 +241,7 @@ struct HomeDashboardView: View {
                                 .fontWeight(.bold)
                             Text(isStreakAtRisk ? "Train today to keep it alive" : "Train daily to keep it growing")
                                 .font(.caption)
-                                .foregroundStyle(Color.soccerCream.opacity(0.7))
+                                .foregroundStyle(Color.soccerText.opacity(0.6))
                         }
 
                         Spacer()
@@ -327,12 +300,12 @@ struct HomeDashboardView: View {
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 6)
                                 .background(Color.soccerGold, in: Capsule())
-                                .foregroundStyle(Color.soccerNavy)
+                                .foregroundStyle(Color.soccerText)
                         }
 
                         Text("Each challenge earns the normal drill reward plus 25 bonus points. A new set appears every day.")
                             .font(.subheadline)
-                            .foregroundStyle(Color.soccerCream.opacity(0.75))
+                            .foregroundStyle(Color.soccerText.opacity(0.65))
 
                         ForEach(Array(dailyChallengeDrills.enumerated()), id: \.offset) { index, drill in
                             let completed = isDailyChallengeCompleted(index: index)
@@ -346,7 +319,7 @@ struct HomeDashboardView: View {
                                         .fontWeight(.bold)
                                     Text(completed ? "Completed" : "+25 bonus points")
                                         .font(.caption)
-                                        .foregroundStyle(Color.soccerCream.opacity(0.7))
+                                        .foregroundStyle(Color.soccerText.opacity(0.6))
                                 }
 
                                 Spacer()
@@ -361,13 +334,13 @@ struct HomeDashboardView: View {
                                 } label: {
                                     Image(systemName: completed ? "checkmark.circle.fill" : "play.circle.fill")
                                         .font(.title)
-                                        .foregroundStyle(completed ? Color.soccerLime : Color.soccerGreen)
+                                        .foregroundStyle(Color.soccerAccent)
                                         .symbolEffect(.bounce, value: completed)
                                 }
                                 .disabled(completed)
                             }
                             .padding(10)
-                            .background(Color.soccerNavy.opacity(0.4), in: RoundedRectangle(cornerRadius: 12))
+                            .background(Color.soccerSurfaceStrong, in: RoundedRectangle(cornerRadius: 12))
                             .animation(.spring(response: 0.45, dampingFraction: 0.65), value: completed)
                         }
                     }
@@ -382,7 +355,7 @@ struct HomeDashboardView: View {
 
                         Text("Today's training plan. Complete drills to build XP, stats, and training time.")
                             .font(.subheadline)
-                            .foregroundStyle(Color.soccerCream.opacity(0.72))
+                            .foregroundStyle(Color.soccerText.opacity(0.6))
 
                         ForEach(schedule.filter { $0.day == todayName }) { scheduleDay in
                             VStack(alignment: .leading, spacing: 10) {
@@ -420,8 +393,8 @@ struct HomeDashboardView: View {
                                                 )
                                                 .foregroundStyle(
                                                     completedTaskIDs.contains(taskID)
-                                                        ? Color.soccerLime
-                                                        : Color.soccerCream
+                                                        ? Color.soccerAccent
+                                                        : (isToday ? .white : Color.soccerText)
                                                 )
                                             }
                                             .contentShape(.rect)
@@ -454,15 +427,11 @@ struct HomeDashboardView: View {
                                         .disabled(!isToday || completedTaskIDs.contains(taskID))
                                         .accessibilityLabel("More options for \(drillName)")
                                     }
-                                    .foregroundStyle(Color.soccerCream)
+                                    .foregroundStyle(isToday ? .white : Color.soccerText)
                                     .padding()
-                                    .background(isToday ? Color.soccerGreen : Color.gray.opacity(0.35))
+                                    .background(isToday ? Color.soccerAccent : Color.soccerSurfaceStrong)
                                     .clipShape(.rect(cornerRadius: 14))
-                                    .overlay {
-                                        RoundedRectangle(cornerRadius: 14)
-                                            .stroke(isToday ? Color.white : Color.gray, lineWidth: 2)
-                                    }
-                                    .opacity(isToday ? 1 : 0.65)
+                                    .opacity(isToday ? 1 : 0.8)
                                 }
                             }
                             .padding(.vertical, 6)
@@ -476,7 +445,7 @@ struct HomeDashboardView: View {
                 .padding()
             }
         }
-        .foregroundStyle(Color.soccerCream)
+        .foregroundStyle(Color.soccerText)
         .navigationTitle("Home")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {

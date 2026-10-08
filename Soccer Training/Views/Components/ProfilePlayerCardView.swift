@@ -1,6 +1,6 @@
 // ProfilePlayerCardView.swift
 // Wraps PlayerCardShell for the signed-in user: their own photo, position,
-// training level, and skill ratings in place of a catalog SoccerPlayer.
+// training level, and skill ratings.
 
 import SwiftUI
 import UIKit
@@ -29,8 +29,8 @@ struct ProfilePlayerCardView: View {
                 Image(systemName: "person.crop.circle.fill")
                     .resizable()
                     .scaledToFit()
-                    .foregroundStyle(Color.soccerCream.opacity(0.7))
-                    .padding(PlayerCardLayout.photoSize.width * 0.22)
+                    .foregroundStyle(Color.white.opacity(0.7))
+                    .padding(PlayerCardLayout.photoDiameter * 0.22)
             }
         }
     }

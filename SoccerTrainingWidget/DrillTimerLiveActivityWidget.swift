@@ -40,7 +40,7 @@ struct DrillTimerAttributes: ActivityAttributes {
 }
 
 private enum DrillTimerPalette {
-    static let cream = Color(red: 0.96, green: 0.99, blue: 0.97)
+    static let text = Color(red: 0.08, green: 0.10, blue: 0.14)
 }
 
 private extension ActivityViewContext<DrillTimerAttributes> {
@@ -73,7 +73,7 @@ struct DrillTimerLiveActivityWidget: Widget {
         ActivityConfiguration(for: DrillTimerAttributes.self) { context in
             DrillTimerLockScreenView(context: context)
                 .activityBackgroundTint(context.backgroundColor)
-                .activitySystemActionForegroundColor(DrillTimerPalette.cream)
+                .activitySystemActionForegroundColor(DrillTimerPalette.text)
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
@@ -171,7 +171,7 @@ private struct DrillTimerLockScreenView: View {
                         .lineLimit(1)
                     Text(context.isTimeUp ? "Time's up! Open the app to log your drill." : "\(context.attributes.category) drill")
                         .font(.subheadline)
-                        .foregroundStyle(DrillTimerPalette.cream.opacity(0.7))
+                        .foregroundStyle(DrillTimerPalette.text.opacity(0.7))
                         .lineLimit(1)
                 }
 
@@ -192,7 +192,7 @@ private struct DrillTimerLockScreenView: View {
                 .tint(context.accentColor)
             }
         }
-        .foregroundStyle(DrillTimerPalette.cream)
+        .foregroundStyle(DrillTimerPalette.text)
         .padding(16)
     }
 }
@@ -205,9 +205,9 @@ extension DrillTimerAttributes {
             startDate: .now,
             endDate: .now.addingTimeInterval(600),
             theme: DrillTimerTheme(
-                accent: DrillTimerColorComponents(red: 0.65, green: 0.95, blue: 0.18, opacity: 1),
-                background: DrillTimerColorComponents(red: 0.02, green: 0.10, blue: 0.07, opacity: 1),
-                surface: DrillTimerColorComponents(red: 0.06, green: 0.16, blue: 0.11, opacity: 1)
+                accent: DrillTimerColorComponents(red: 0.07, green: 0.42, blue: 0.93, opacity: 1),
+                background: DrillTimerColorComponents(red: 1.0, green: 1.0, blue: 1.0, opacity: 1),
+                surface: DrillTimerColorComponents(red: 0.95, green: 0.96, blue: 0.98, opacity: 1)
             )
         )
     }

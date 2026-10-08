@@ -7,7 +7,6 @@ import SwiftUI
 struct AllDrillsView: View {
     let topics: [Topic]
     @Binding var totalPoints: Int
-    @AppStorage("isProMember") private var isProMember = false
     @State private var searchText = ""
 
     private let columns = [
@@ -28,12 +27,8 @@ struct AllDrillsView: View {
 
     var body: some View {
         ZStack {
-            LinearGradient(
-                colors: [Color.soccerNavy, Color.soccerSurface],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
+            SoccerBackgroundView()
+                .ignoresSafeArea()
 
             ScrollView {
                 VStack(spacing: 22) {
@@ -45,50 +40,32 @@ struct AllDrillsView: View {
                     if !searchText.isEmpty && filteredTopics.isEmpty {
                         Text("No drills match “\(searchText)”.")
                             .font(.subheadline)
-                            .foregroundStyle(Color.soccerCream.opacity(0.7))
+                            .foregroundStyle(Color.soccerText.opacity(0.6))
                             .padding(.top, 20)
                     }
 
                     LazyVGrid(columns: columns, spacing: 14) {
                         ForEach(filteredTopics) { topic in
-                            if topic.name == "Plus Training" && !isProMember {
+                            NavigationLink {
+                                DrillListView(
+                                    topic: topic.name,
+                                    drills: topic.drills,
+                                    totalPoints: $totalPoints
+                                )
+                            } label: {
                                 DrillCategoryCard(
                                     name: topic.name,
                                     drillCount: topic.drills.count
                                 )
-                                .opacity(0.62)
-                                .overlay(alignment: .topTrailing) {
-                                    Label("PLUS LOCKED", systemImage: "lock.fill")
-                                        .font(.caption2.weight(.heavy))
-                                        .foregroundStyle(Color.soccerNavy)
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 6)
-                                        .background(Color.soccerLime, in: Capsule())
-                                        .padding(8)
-                                }
-                                .accessibilityLabel("Plus Training locked. Subscribe to Futbol Elite Plus in the shop.")
-                            } else {
-                                NavigationLink {
-                                    DrillListView(
-                                        topic: topic.name,
-                                        drills: topic.drills,
-                                        totalPoints: $totalPoints
-                                    )
-                                } label: {
-                                    DrillCategoryCard(
-                                        name: topic.name,
-                                        drillCount: topic.drills.count
-                                    )
-                                }
-                                .buttonStyle(.plain)
                             }
+                            .buttonStyle(.plain)
                         }
                     }
                 }
                 .padding()
             }
         }
-        .foregroundStyle(Color.soccerCream)
+        .foregroundStyle(Color.soccerText)
         .navigationTitle("Training Center")
         .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $searchText, prompt: "Search drills or categories")
@@ -104,15 +81,16 @@ private struct DrillsHeaderView: View {
             HStack {
                 Image(systemName: "figure.soccer")
                     .font(.system(size: 38, weight: .bold))
-                    .foregroundStyle(Color.soccerLime)
+                    .foregroundStyle(.white)
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Build Your Game")
                         .font(.largeTitle)
                         .fontWeight(.heavy)
+                        .foregroundStyle(.white)
                     Text("Choose a skill and start training")
                         .font(.subheadline)
-                        .foregroundStyle(Color.soccerCream.opacity(0.72))
+                        .foregroundStyle(.white.opacity(0.8))
                 }
             }
 
@@ -123,22 +101,18 @@ private struct DrillsHeaderView: View {
             }
             .font(.subheadline)
             .fontWeight(.bold)
-            .foregroundStyle(Color.soccerLime)
+            .foregroundStyle(.white)
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background {
             LinearGradient(
-                colors: [Color.soccerGreen, Color.soccerGreen.opacity(0.55)],
+                colors: [Color.soccerAccent, Color.soccerAccentLight],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
         }
         .clipShape(.rect(cornerRadius: 22))
-        .overlay {
-            RoundedRectangle(cornerRadius: 22)
-                .stroke(Color.soccerLime.opacity(0.7), lineWidth: 2)
-        }
     }
 }
 
@@ -167,7 +141,7 @@ private struct DrillCategoryCard: View {
                 }
 
             LinearGradient(
-                colors: [.clear, Color.soccerNavy.opacity(0.95)],
+                colors: [.clear, Color.black.opacity(0.78)],
                 startPoint: .top,
                 endPoint: .bottom
             )
@@ -181,25 +155,22 @@ private struct DrillCategoryCard: View {
                 }
                 .font(.headline)
                 .fontWeight(.heavy)
-                .foregroundStyle(Color.soccerLime)
+                .foregroundStyle(.white)
 
                 Text("\(drillCount) training sessions")
                     .font(.subheadline)
                     .fontWeight(.bold)
+                    .foregroundStyle(.white)
 
                 Text(DrillPresentation.focus(for: name))
                     .font(.caption2)
-                    .foregroundStyle(Color.soccerCream.opacity(0.8))
+                    .foregroundStyle(.white.opacity(0.8))
                     .lineLimit(2)
             }
             .padding(14)
         }
         .frame(maxWidth: .infinity, minHeight: 210, alignment: .leading)
         .clipShape(.rect(cornerRadius: 20))
-        .overlay {
-            RoundedRectangle(cornerRadius: 20)
-                .stroke(Color.soccerCream.opacity(0.22), lineWidth: 1)
-        }
         .shadow(color: .black.opacity(0.22), radius: 8, y: 5)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(name), \(drillCount) drills")

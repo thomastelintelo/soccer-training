@@ -44,6 +44,16 @@ final class ScreenRecordingManager: NSObject, ObservableObject {
             return
         }
 
+        Task {
+            guard await AVAudioApplication.requestRecordPermission() else {
+                errorMessage = "Microphone access is off. Turn it on in Settings to hear your voice in recordings."
+                return
+            }
+            beginRecording()
+        }
+    }
+
+    private func beginRecording() {
         // Other parts of the app (the Pass and Turn drill's voice callouts)
         // can leave the shared audio session in a playback-only category.
         // That silently blocks ReplayKit's microphone capture even with
@@ -52,6 +62,9 @@ final class ScreenRecordingManager: NSObject, ObservableObject {
         try? audioSession.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetoothHFP])
         try? audioSession.setActive(true, options: [])
 
+        // ReplayKit doesn't include narration unless this is explicitly on.
+        // Set it immediately before starting in case another recording flow
+        // changed the shared recorder's configuration.
         recorder.isMicrophoneEnabled = true
         recorder.isCameraEnabled = isCameraEnabled
         recorder.cameraPosition = cameraPosition

@@ -21,7 +21,7 @@ struct ConfettiView: View {
         ZStack {
             ForEach(particles, id: \.self) { _ in
                 Circle()
-                    .fill([Color.soccerLime, .soccerGreen, .soccerGold, .yellow].randomElement()!)
+                    .fill([Color.soccerAccent, .soccerAccentLight, .soccerGold, .yellow].randomElement()!)
                     .frame(width: 6, height: 6)
                     .modifier(ConfettiMotion())
             }
@@ -54,7 +54,7 @@ private struct PlayerCreateHeroHeader: View {
     var body: some View {
         ZStack {
             LinearGradient(
-                colors: [Color.soccerGreen.opacity(0.85), Color.soccerNavy.opacity(0.85)],
+                colors: [Color.soccerAccent, Color.soccerAccentLight],
                 startPoint: animate ? .topLeading : .bottomTrailing,
                 endPoint: animate ? .bottomTrailing : .topLeading
             )
@@ -63,13 +63,14 @@ private struct PlayerCreateHeroHeader: View {
             VStack(spacing: 8) {
                 Image(systemName: "figure.soccer")
                     .font(.system(size: 56))
-                    .foregroundStyle(Color.soccerLime)
+                    .foregroundStyle(.white)
                     .symbolEffect(.bounce, options: .repeating, value: animate)
                 Text("Create Your Player")
                     .font(.largeTitle).bold()
+                    .foregroundStyle(.white)
                 Text("Kick off your journey")
                     .font(.subheadline)
-                    .foregroundStyle(Color.soccerCream.opacity(0.9))
+                    .foregroundStyle(.white.opacity(0.9))
             }
             .padding(.vertical, 16)
         }
@@ -82,6 +83,7 @@ private struct PlayerCreateHeroHeader: View {
 
 struct LaunchContainerView: View {
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
+    @AppStorage("accountRole") private var accountRole = ""
     @State private var hasStarted = false
     @State private var hasSeenBenefits = false
 
@@ -91,9 +93,29 @@ struct LaunchContainerView: View {
             // doesn't have to construct the whole signed-in tab hierarchy first.
             if hasStarted {
                 if hasCompletedOnboarding {
-                    ContentView()
+                    if accountRole == AppRole.coach.rawValue {
+                        CoachContentView()
+                    } else {
+                        ContentView()
+                    }
                 } else if hasSeenBenefits {
-                    PlayerSignInView(isSignedIn: $hasCompletedOnboarding)
+                    if accountRole == AppRole.player.rawValue {
+                        PlayerSignInView(
+                            isSignedIn: $hasCompletedOnboarding,
+                            onChooseDifferentRole: { accountRole = "" }
+                        )
+                    } else if accountRole == AppRole.coach.rawValue {
+                        CoachSignInView(
+                            isSignedIn: $hasCompletedOnboarding,
+                            onChooseDifferentRole: { accountRole = "" }
+                        )
+                    } else {
+                        RoleSelectionView { role in
+                            withAnimation(.easeOut(duration: 0.25)) {
+                                accountRole = role.rawValue
+                            }
+                        }
+                    }
                 } else {
                     AppBenefitsView {
                         withAnimation(.easeOut(duration: 0.35)) {
@@ -122,33 +144,29 @@ private struct AppBenefitsView: View {
     private let benefits: [(icon: String, title: String, detail: String)] = [
         ("list.bullet.clipboard.fill", "150+ Training Drills", "Shooting, dribbling, passing, goalkeeping, and a lot more — for every position."),
         ("checkmark.seal.fill", "Free to Play", "No account needed, and nothing to pay. A few optional extras are in there if you ever want them."),
-        ("star.fill", "Earn Points, Build Your Team", "Complete drills to earn points, then sign real players and build your Starting 11."),
+        ("star.fill", "Earn Points and Level Up", "Complete drills and sessions to earn points, improve your level, and unlock achievements."),
         ("calendar.badge.checkmark", "Daily Challenges", "Fresh challenges every day keep training fun and rewarding."),
         ("chart.bar.fill", "Track Your Progress", "Your Profile shows your level, stats, and achievements as you improve."),
     ]
 
     var body: some View {
         ZStack {
-            LinearGradient(
-                colors: [Color.soccerNavy.opacity(0.96), Color.soccerGreen.opacity(0.78)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            SoccerBackgroundView()
+                .ignoresSafeArea()
 
             ScrollView {
                 VStack(spacing: 22) {
                     VStack(spacing: 10) {
                         Image(systemName: "figure.soccer")
                             .font(.system(size: 54))
-                            .foregroundStyle(Color.soccerLime)
+                            .foregroundStyle(Color.soccerAccent)
                         Text("Welcome to Futbol Elite")
                             .font(.largeTitle)
                             .fontWeight(.heavy)
                             .multilineTextAlignment(.center)
                         Text("Here's what you're getting.")
                             .font(.title3)
-                            .foregroundStyle(Color.soccerCream.opacity(0.85))
+                            .foregroundStyle(Color.soccerText.opacity(0.65))
                     }
                     .padding(.top, 20)
 
@@ -157,9 +175,9 @@ private struct AppBenefitsView: View {
                             HStack(spacing: 16) {
                                 Image(systemName: benefit.icon)
                                     .font(.title2)
-                                    .foregroundStyle(Color.soccerNavy)
+                                    .foregroundStyle(.white)
                                     .frame(width: 40, height: 40)
-                                    .background(Color.soccerLime, in: Circle())
+                                    .background(Color.soccerAccent, in: Circle())
 
                                 VStack(alignment: .leading, spacing: 3) {
                                     Text(benefit.title)
@@ -167,12 +185,12 @@ private struct AppBenefitsView: View {
                                         .fontWeight(.bold)
                                     Text(benefit.detail)
                                         .font(.subheadline)
-                                        .foregroundStyle(Color.soccerCream.opacity(0.8))
+                                        .foregroundStyle(Color.soccerText.opacity(0.7))
                                 }
                                 Spacer(minLength: 0)
                             }
                             .padding(14)
-                            .background(Color.soccerCream.opacity(0.1), in: RoundedRectangle(cornerRadius: 16))
+                            .background(Color.soccerSurface, in: RoundedRectangle(cornerRadius: 16))
                         }
                     }
 
@@ -182,8 +200,8 @@ private struct AppBenefitsView: View {
                             .fontWeight(.bold)
                             .frame(maxWidth: .infinity)
                             .padding()
-                            .background(Color.soccerLime)
-                            .foregroundStyle(Color.soccerNavy)
+                            .background(Color.soccerAccent)
+                            .foregroundStyle(.white)
                             .clipShape(.rect(cornerRadius: 16))
                     }
                     .padding(.top, 8)
@@ -191,90 +209,266 @@ private struct AppBenefitsView: View {
                 .padding(24)
             }
         }
-        .foregroundStyle(Color.soccerCream)
+        .foregroundStyle(Color.soccerText)
     }
 }
 
 private struct WelcomeStartView: View {
     let startTraining: () -> Void
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var ballEntered = false
+    @State private var logoVisible = false
+    @State private var wordsVisible = false
+    @State private var featureIndex: Int?
+    @State private var controlsVisible = false
+
+    private let features: [(icon: String, title: String, color: Color)] = [
+        ("list.bullet.clipboard.fill", "OVER 150+ DRILLS", .cyan),
+        ("bolt.fill", "GET BETTER IN NO TIME", .soccerGold),
+        ("checkmark.seal.fill", "NO SIGNING UP", .green),
+    ]
 
     var body: some View {
         ZStack {
             LinearGradient(
-                colors: [Color.soccerGreen.opacity(0.85), Color.soccerNavy],
-                startPoint: .top,
-                endPoint: .bottom
+                colors: [
+                    Color(red: 0.03, green: 0.08, blue: 0.30),
+                    Color(red: 0.05, green: 0.50, blue: 0.38),
+                    Color(red: 0.32, green: 0.08, blue: 0.52),
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
             )
             .ignoresSafeArea()
 
-            // A drawn stick-figure pictogram instead of a real player's
-            // photo, so the splash screen isn't tied to any one athlete.
+            RadialGradient(
+                colors: [Color.soccerGold.opacity(0.45), .clear],
+                center: .bottomLeading,
+                startRadius: 0,
+                endRadius: 360
+            )
+            .ignoresSafeArea()
+
+            RadialGradient(
+                colors: [Color.soccerAccent.opacity(0.65), .clear],
+                center: .top,
+                startRadius: 0,
+                endRadius: 430
+            )
+            .ignoresSafeArea()
+
+            SoccerIntroFieldLines()
+                .opacity(logoVisible ? 1 : 0)
+                .animation(.easeOut(duration: 1.2), value: logoVisible)
+
             Image(systemName: "figure.soccer")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 460, height: 460)
-                .foregroundStyle(Color.soccerLime.opacity(0.18))
-                .offset(y: -60)
+                .font(.system(size: 250, weight: .thin))
+                .foregroundStyle(.white.opacity(0.08))
+                .offset(x: 105, y: 100)
                 .ignoresSafeArea()
 
-            LinearGradient(
-                colors: [
-                    Color.soccerNavy.opacity(0.20),
-                    Color.soccerGreen.opacity(0.55),
-                    Color.soccerNavy.opacity(0.96),
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
+            Image(systemName: "soccerball")
+                .font(.system(size: 62, weight: .regular))
+                .foregroundStyle(.white)
+                .shadow(color: .black.opacity(0.4), radius: 12, y: 8)
+                .rotationEffect(.degrees(ballEntered ? 720 : 0))
+                .offset(
+                    x: ballEntered ? 0 : -260,
+                    y: ballEntered ? -155 : 220
+                )
 
-            VStack(spacing: 18) {
-                Spacer()
+            VStack(spacing: 16) {
+                Spacer(minLength: 90)
 
                 Image(systemName: "figure.soccer")
-                    .font(.system(size: 64, weight: .semibold))
-                    .foregroundStyle(Color.soccerLime)
-                    .shadow(color: .black.opacity(0.35), radius: 10, y: 5)
+                    .font(.system(size: 70, weight: .bold))
+                    .foregroundStyle(.white)
+                    .padding(22)
+                    .background(Color.soccerAccent, in: Circle())
+                    .overlay {
+                        Circle()
+                            .stroke(.white.opacity(0.75), lineWidth: 3)
+                    }
+                    .shadow(color: Color.soccerAccent.opacity(0.8), radius: 30)
+                    .scaleEffect(logoVisible ? 1 : 0.3)
+                    .opacity(logoVisible ? 1 : 0)
 
-                Text("Futbol Elite")
-                    .font(.system(size: 46, weight: .heavy, design: .rounded))
-                    .multilineTextAlignment(.center)
-                    .foregroundStyle(Color.soccerCream)
+                VStack(spacing: 8) {
+                    Text("WELCOME TO")
+                        .font(.headline)
+                        .fontWeight(.black)
+                        .tracking(5)
+                        .foregroundStyle(.white.opacity(0.75))
 
-                Text("Train smarter. Play stronger.")
-                    .font(.title3)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(Color.soccerCream.opacity(0.85))
+                    Text("FUTBOL ELITE")
+                        .font(.system(size: 44, weight: .black, design: .rounded))
+                        .minimumScaleFactor(0.75)
+                        .lineLimit(1)
+                        .foregroundStyle(.white)
 
-                Button(action: startTraining) {
-                    Label("Start Training", systemImage: "play.fill")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 17)
-                        .background(Color.soccerLime)
-                        .foregroundStyle(Color.soccerNavy)
-                        .clipShape(.rect(cornerRadius: 18))
-                        .shadow(color: .black.opacity(0.3), radius: 10, y: 5)
+                    Text("Train smarter. Play stronger.")
+                        .font(.title3)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.white.opacity(0.8))
                 }
-                .padding(.top, 14)
+                .multilineTextAlignment(.center)
+                .offset(y: wordsVisible ? 0 : 28)
+                .opacity(wordsVisible ? 1 : 0)
+
+                ZStack {
+                    if let featureIndex {
+                        Label(
+                            features[featureIndex].title,
+                            systemImage: features[featureIndex].icon
+                        )
+                        .font(.headline)
+                        .fontWeight(.black)
+                        .tracking(1.5)
+                        .foregroundStyle(features[featureIndex].color)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 11)
+                        .background(features[featureIndex].color.opacity(0.16), in: Capsule())
+                        .transition(.blurReplace.combined(with: .scale))
+                        .id(featureIndex)
+                    }
+                }
+                .frame(height: 52)
+
+                Spacer()
+
+                VStack(spacing: 16) {
+                    Button {
+                        Haptics.tap()
+                        startTraining()
+                    } label: {
+                        Label("Enter Futbol Elite", systemImage: "play.fill")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 17)
+                            .background(.white)
+                            .foregroundStyle(Color.soccerAccent)
+                            .clipShape(.rect(cornerRadius: 18))
+                            .shadow(color: .black.opacity(0.28), radius: 14, y: 7)
+                    }
+
+                    Text("PLAYER TRAINING • COACHING • PROGRESS")
+                        .font(.caption2)
+                        .fontWeight(.black)
+                        .tracking(1.2)
+                        .multilineTextAlignment(.center)
+                        .foregroundStyle(.white.opacity(0.6))
+                }
                 .padding(.horizontal, 28)
                 .padding(.bottom, 54)
+                .opacity(controlsVisible ? 1 : 0)
+                .offset(y: controlsVisible ? 0 : 24)
+            }
+            .padding(.horizontal, 18)
+
+            VStack {
+                HStack {
+                    Spacer()
+                    Button("Skip") {
+                        startTraining()
+                    }
+                    .font(.headline)
+                    .fontWeight(.bold)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 9)
+                    .background(.black.opacity(0.22), in: Capsule())
+                }
+                Spacer()
+            }
+            .padding(20)
+        }
+        .task {
+            if reduceMotion {
+                ballEntered = true
+                logoVisible = true
+                wordsVisible = true
+                controlsVisible = true
+                return
+            }
+
+            withAnimation(.spring(response: 2.2, dampingFraction: 0.72)) {
+                ballEntered = true
+            }
+            try? await Task.sleep(for: .seconds(3))
+            withAnimation(.spring(response: 1.0, dampingFraction: 0.68)) {
+                logoVisible = true
+            }
+            try? await Task.sleep(for: .seconds(2))
+            withAnimation(.easeOut(duration: 1.0)) {
+                wordsVisible = true
+            }
+            try? await Task.sleep(for: .seconds(2))
+            withAnimation(.spring(response: 0.55, dampingFraction: 0.8)) {
+                featureIndex = 0
+            }
+            try? await Task.sleep(for: .seconds(2))
+            withAnimation(.spring(response: 0.55, dampingFraction: 0.8)) {
+                featureIndex = 1
+            }
+            try? await Task.sleep(for: .seconds(2))
+            withAnimation(.spring(response: 0.55, dampingFraction: 0.8)) {
+                featureIndex = 2
+            }
+            try? await Task.sleep(for: .seconds(1))
+            try? await Task.sleep(for: .seconds(3))
+            withAnimation(.easeOut(duration: 0.8)) {
+                controlsVisible = true
             }
         }
     }
 }
 
+private struct SoccerIntroFieldLines: View {
+    var body: some View {
+        GeometryReader { proxy in
+            Path { path in
+                let inset: CGFloat = 22
+                let field = CGRect(
+                    x: inset,
+                    y: inset,
+                    width: proxy.size.width - inset * 2,
+                    height: proxy.size.height - inset * 2
+                )
+                path.addRoundedRect(in: field, cornerSize: CGSize(width: 28, height: 28))
+                path.move(to: CGPoint(x: field.minX, y: field.midY))
+                path.addLine(to: CGPoint(x: field.maxX, y: field.midY))
+                path.addEllipse(
+                    in: CGRect(
+                        x: field.midX - 52,
+                        y: field.midY - 52,
+                        width: 104,
+                        height: 104
+                    )
+                )
+            }
+            .stroke(.white.opacity(0.12), lineWidth: 2)
+        }
+        .padding(.vertical, 36)
+        .allowsHitTesting(false)
+    }
+}
+
 struct PlayerSignInView: View {
     @Binding var isSignedIn: Bool
+    let onChooseDifferentRole: () -> Void
+
     @AppStorage("playerUsername") private var savedUsername = ""
     @AppStorage("playerPosition") private var savedPosition = ""
     @AppStorage("playerBestSkill") private var savedBestSkill = ""
-    @AppStorage("favoriteTeam") private var favoriteTeam = ""
+    @AppStorage("playerAge") private var savedAge = 0
+    @AppStorage("playerMainFocus") private var savedMainFocus = "None"
 
     @State private var username = ""
+    @State private var age = 0
     @State private var position = ""
     @State private var bestSkill = ""
+    @State private var mainFocus = "None"
     @State private var showConfetti = false
 
     private let positions = [
@@ -292,21 +486,41 @@ struct PlayerSignInView: View {
         "Dribbling",
     ]
 
+    private let focusOptions = ["None", "Control", "Passing", "Shooting", "Dribbling", "Fitness"]
+
     private var canSignIn: Bool {
         !username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && age > 0
             && !position.isEmpty
             && !bestSkill.isEmpty
-            && !favoriteTeam.isEmpty
+    }
+
+    private var recommendedSkill: String {
+        switch age {
+        case 5...8: "Control"
+        case 9...11: "Dribbling"
+        case 12...14: "Passing"
+        case 15...17: "Shooting"
+        case 18...21: "Control"
+        default: ""
+        }
+    }
+
+    private var recommendationDetail: String {
+        switch age {
+        case 5...8: "Close control builds confidence and makes every other skill easier."
+        case 9...11: "Dribbling helps you become comfortable changing direction with the ball."
+        case 12...14: "Passing and scanning become especially important as the game gets faster."
+        case 15...17: "Finishing practice helps turn good team play into goals."
+        case 18...21: "A clean first touch gives you more time for your next decision."
+        default: ""
+        }
     }
 
     var body: some View {
         ZStack {
-            LinearGradient(
-                colors: [Color.soccerNavy.opacity(0.96), Color.soccerGreen.opacity(0.78)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            SoccerBackgroundView()
+                .ignoresSafeArea()
 
             ScrollView {
                 VStack(spacing: 24) {
@@ -314,7 +528,7 @@ struct PlayerSignInView: View {
 
                     Image(systemName: "figure.soccer")
                         .font(.system(size: 72))
-                        .foregroundStyle(Color.soccerLime)
+                        .foregroundStyle(Color.soccerAccent)
 
                     Text("Create Your Player")
                         .font(.largeTitle)
@@ -324,25 +538,47 @@ struct PlayerSignInView: View {
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .padding()
-                        .background(Color.soccerCream.opacity(0.14))
+                        .background(Color.soccerSurface)
                         .clipShape(.rect(cornerRadius: 12))
 
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Pick your favorite team")
+                        Text("How old are you?")
                             .font(.headline)
 
-                        Picker("Favorite team", selection: $favoriteTeam) {
-                            Text("Select a team").tag("")
-                            ForEach(FavoriteTeam.allCases) { team in
-                                Text(team.rawValue).tag(team.rawValue)
+                        Picker("Age", selection: $age) {
+                            Text("Select your age").tag(0)
+                            ForEach(5...21, id: \.self) { age in
+                                Text("\(age) years old").tag(age)
                             }
                         }
                         .pickerStyle(.menu)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding()
-                        .background(Color.soccerCream.opacity(0.14))
+                        .background(Color.soccerSurface)
                         .clipShape(.rect(cornerRadius: 12))
+                    }
 
+                    if age > 0 {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Label(
+                                "Recommended focus: \(recommendedSkill)",
+                                systemImage: "lightbulb.fill"
+                            )
+                            .font(.headline)
+                            .foregroundStyle(Color.soccerAccent)
+
+                            Text(recommendationDetail)
+                                .font(.subheadline)
+                                .foregroundStyle(Color.soccerText.opacity(0.7))
+
+                            Button("Choose \(recommendedSkill)") {
+                                bestSkill = recommendedSkill
+                            }
+                            .font(.subheadline.weight(.bold))
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding()
+                        .background(Color.soccerSurface, in: RoundedRectangle(cornerRadius: 14))
                     }
 
                     VStack(alignment: .leading, spacing: 8) {
@@ -358,7 +594,7 @@ struct PlayerSignInView: View {
                         .pickerStyle(.menu)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding()
-                        .background(Color.soccerCream.opacity(0.14))
+                        .background(Color.soccerSurface)
                         .clipShape(.rect(cornerRadius: 12))
                     }
 
@@ -375,20 +611,40 @@ struct PlayerSignInView: View {
                         .pickerStyle(.menu)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding()
-                        .background(Color.soccerCream.opacity(0.14))
+                        .background(Color.soccerSurface)
+                        .clipShape(.rect(cornerRadius: 12))
+                    }
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("What do you mainly want to improve?")
+                            .font(.headline)
+                        Text("This skill will appear first in your drills. Choose None for a balanced plan.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Picker("Main focus", selection: $mainFocus) {
+                            ForEach(focusOptions, id: \.self) { focus in
+                                Text(focus).tag(focus)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding()
+                        .background(Color.soccerSurface)
                         .clipShape(.rect(cornerRadius: 12))
                     }
 
                     Button {
                         let trimmed = username.trimmingCharacters(in: .whitespacesAndNewlines)
-                        guard !trimmed.isEmpty, !position.isEmpty, !bestSkill.isEmpty, !favoriteTeam.isEmpty else {
+                        guard !trimmed.isEmpty, age > 0, !position.isEmpty, !bestSkill.isEmpty else {
                             Haptics.soft()
                             return
                         }
                         Haptics.success()
                         savedUsername = trimmed
+                        savedAge = age
                         savedPosition = position
                         savedBestSkill = bestSkill
+                        savedMainFocus = mainFocus
                         isSignedIn = true
                         withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
                             showConfetti = true
@@ -397,22 +653,24 @@ struct PlayerSignInView: View {
                             showConfetti = false
                         }
                     } label: {
-                        Label("Sign In", systemImage: "sparkles")
+                        Label("Create Player Profile", systemImage: "sparkles")
                             .font(.title2)
                             .fontWeight(.bold)
                             .frame(maxWidth: .infinity)
                             .padding()
-                            .background(canSignIn ? Color.soccerLime : Color.gray)
-                            .foregroundStyle(Color.soccerNavy)
+                            .background(canSignIn ? Color.soccerAccent : Color.gray)
+                            .foregroundStyle(.white)
                             .clipShape(.rect(cornerRadius: 14))
                     }
                     .disabled(!canSignIn)
 
+                    Button("Choose Coach Instead", action: onChooseDifferentRole)
+                        .font(.headline)
                 }
                 .padding(24)
             }
         }
-        .foregroundStyle(Color.soccerCream)
+        .foregroundStyle(Color.soccerText)
         .overlay(alignment: .top) {
             if showConfetti {
                 ConfettiView()
@@ -426,9 +684,6 @@ struct PlayerSignInView: View {
 struct Soccer_TrainingApp: App {
     init() {
         DrillTimerLiveActivity.shared.configure()
-        #if DEBUG
-        UserDefaults.standard.register(defaults: ["isProMember": true])
-        #endif
         Self.migrateCategoryProgressIfNeeded()
     }
 
@@ -470,7 +725,7 @@ struct Soccer_TrainingApp: App {
     var body: some Scene {
         WindowGroup {
             LaunchContainerView()
-                .preferredColorScheme(.dark)
+                .preferredColorScheme(.light)
         }
     }
 }

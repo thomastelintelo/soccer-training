@@ -1,5 +1,5 @@
 // ContentView.swift
-// The signed-in app's root tab view: Home, Drills, Player Shop, Store, Profile.
+// The signed-in app's root tab view: Home, Drills, Profile.
 
 import SwiftUI
 
@@ -8,7 +8,7 @@ struct ContentView: View {
     @AppStorage("playerUsername") private var playerUsername = ""
     @AppStorage("playerPosition") private var playerPosition = ""
     @AppStorage("playerBestSkill") private var playerBestSkill = ""
-    @AppStorage("favoriteTeam") private var favoriteTeam = ""
+    @AppStorage("playerMainFocus") private var playerMainFocus = "None"
 
     let topics = [
         Topic(name: "Shooting", drills: [
@@ -18,6 +18,7 @@ struct ContentView: View {
             Drill(name: "Near Post Finish"), Drill(name: "Cutback Finish"),
             Drill(name: "Far Post Finish"), Drill(name: "Low Driven Finish"),
             Drill(name: "Rebound Finish"), Drill(name: "One Touch Finish"),
+            Drill(name: "Finishing Clock"), Drill(name: "Pressure Finish Gauntlet"),
         ]),
         Topic(name: "Dribbling", drills: [
             Drill(name: "Cone Weave"), Drill(name: "Speed Dribble"), Drill(name: "Box Dribble"),
@@ -27,6 +28,7 @@ struct ContentView: View {
             Drill(name: "V-Cut Dribble"), Drill(name: "Double Touch"),
             Drill(name: "Body Feint"), Drill(name: "Step Over Exit"),
             Drill(name: "Drag Push"), Drill(name: "Slalom Control"),
+            Drill(name: "Dribble Gauntlet"), Drill(name: "Chain Move Challenge"),
         ]),
         Topic(name: "Passing", drills: [
             Drill(name: "Wall Passing"), Drill(name: "One Touch Passing"), Drill(name: "Weak Foot Passing"),
@@ -35,6 +37,7 @@ struct ContentView: View {
             Drill(name: "Triangle Passing"), Drill(name: "Outside Foot Pass"),
             Drill(name: "Give and Go"), Drill(name: "Passing Gates"),
             Drill(name: "First Time Pass"), Drill(name: "Lofted Pass"),
+            Drill(name: "Passing Gauntlet"), Drill(name: "Rapid Switch Challenge"),
         ]),
         Topic(name: "Control", drills: [
             Drill(name: "Juggling"), Drill(name: "Wall Control"), Drill(name: "Inside-Outside Touches"),
@@ -43,6 +46,7 @@ struct ContentView: View {
             Drill(name: "Outside Foot Control"), Drill(name: "Bounce Control"), Drill(name: "Half Turn Control"),
             Drill(name: "Directional First Touch"), Drill(name: "Sole Cushion"),
             Drill(name: "High Ball Settle"), Drill(name: "Turn on First Touch"),
+            Drill(name: "Control Gauntlet"), Drill(name: "Pressure Touch Challenge"),
         ]),
         Topic(name: "Indoor Training", drills: [
             Drill(name: "Ball Mastery"), Drill(name: "Toe Tap Challenge"),
@@ -118,6 +122,13 @@ struct ContentView: View {
         ]),
     ]
 
+    private var recommendedTopics: [Topic] {
+        guard playerMainFocus != "None" else { return topics }
+        return topics.sorted { left, right in
+            left.name == playerMainFocus && right.name != playerMainFocus
+        }
+    }
+
     private var schedule: [ScheduleDay] {
         let positionPriorities: [String]
 
@@ -151,14 +162,24 @@ struct ContentView: View {
             }
             dailyFocuses.append("Workout")
 
-            let drills = dailyFocuses.enumerated().map { drillIndex, focus in
-                let scheduleIndex = (dayIndex * 5) + drillIndex
+            var drills = dailyFocuses.enumerated().map { drillIndex, focus in
+                let scheduleIndex = (dayIndex * 7) + drillIndex + 1
                 return ScheduleItem(
                     id: scheduleIndex,
                     focus: focus,
                     drillName: drillName(for: focus, index: scheduleIndex)
                 )
             }
+
+            // Every day's session bookends the skill work with a fixed
+            // warm-up and cool-down, instead of jumping straight into drills.
+            drills.insert(
+                ScheduleItem(id: dayIndex * 7, focus: "Workout", drillName: "Dynamic Warm Up"),
+                at: 0
+            )
+            drills.append(
+                ScheduleItem(id: (dayIndex * 7) + 6, focus: "Workout", drillName: "Cool Down Stretch")
+            )
 
             return ScheduleDay(day: day, drills: drills)
         }
@@ -187,25 +208,23 @@ struct ContentView: View {
             }
 
             NavigationStack {
-                AllDrillsView(topics: topics, totalPoints: $totalPoints)
+                AllDrillsView(topics: recommendedTopics, totalPoints: $totalPoints)
             }
             .tabItem {
                 Label("Drills", systemImage: "figure.soccer")
             }
 
             NavigationStack {
-                PlayerShopView(totalPoints: $totalPoints)
+                SessionsView(topics: topics, totalPoints: $totalPoints)
             }
             .tabItem {
-                Label("Player Shop", systemImage: "cart.fill")
+                Label("Sessions", systemImage: "list.bullet.clipboard.fill")
             }
 
-            NavigationStack {
-                RarePlayerStoreView()
-            }
-            .tabItem {
-                Label("Store", systemImage: "sparkles")
-            }
+            PlayerTeamView()
+                .tabItem {
+                    Label("Team", systemImage: "person.3.fill")
+                }
 
             NavigationStack {
                 ProfileView(
@@ -219,10 +238,7 @@ struct ContentView: View {
                 Label("Profile", systemImage: "person.crop.circle.fill")
             }
         }
-        .id(favoriteTeam)
-        .transition(.opacity)
-        .animation(.easeInOut(duration: 0.35), value: favoriteTeam)
-        .tint(FavoriteTeam(rawValue: favoriteTeam)?.highlightColor ?? .soccerLime)
+        .tint(Color.soccerAccent)
         .overlay(alignment: .topTrailing) {
             // Stays on top across every tab while recording, since the
             // camera bubble shouldn't disappear just from navigating.

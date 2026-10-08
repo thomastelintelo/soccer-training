@@ -1,10 +1,8 @@
-// PlayerCardView.swift
-// An Ultimate-Team-style player card: the signature tapered shield outline,
-// a wide photo that fades into the card instead of sitting in a circle,
-// tiered foil background, and six derived sub-stats. `PlayerCardShell` is
-// the shared visual shell; `PlayerCardView` wraps it for a catalog
-// SoccerPlayer, and ProfilePlayerCardView (in its own file) wraps it for
-// the signed-in user.
+// PlayerCardShell.swift
+// An Ultimate-Team-style player card shell: the signature tapered shield
+// outline, a wide photo that fades into the card instead of sitting in a
+// circle, tiered foil background, and six derived sub-stats. Wrapped by
+// ProfilePlayerCardView for the signed-in user.
 
 import SwiftUI
 
@@ -25,7 +23,7 @@ enum PlayerCardTier {
 
     var gradientColors: [Color] {
         switch self {
-        case .special: [Color.black, Color(red: 0.08, green: 0.08, blue: 0.1), Color.soccerNavy]
+        case .special: [Color.black, Color(red: 0.08, green: 0.08, blue: 0.1), Color(red: 0.05, green: 0.07, blue: 0.12)]
         case .gold: [Color(red: 1.0, green: 0.88, blue: 0.5), Color(red: 0.93, green: 0.72, blue: 0.22), Color(red: 0.64, green: 0.45, blue: 0.06)]
         case .silver: [Color(white: 0.96), Color(white: 0.8), Color(white: 0.55)]
         case .bronze: [Color(red: 0.87, green: 0.65, blue: 0.42), Color(red: 0.72, green: 0.48, blue: 0.26), Color(red: 0.45, green: 0.28, blue: 0.13)]
@@ -34,15 +32,15 @@ enum PlayerCardTier {
 
     var foreground: Color {
         switch self {
-        case .special: Color.soccerCream
-        case .gold, .silver, .bronze: Color.soccerNavy
+        case .special: .white
+        case .gold, .silver, .bronze: Color.soccerText
         }
     }
 
     var highlight: Color {
         switch self {
-        case .special: Color.soccerLime
-        case .gold, .silver, .bronze: Color.soccerNavy.opacity(0.65)
+        case .special: Color.soccerAccentLight
+        case .gold, .silver, .bronze: Color.soccerText.opacity(0.65)
         }
     }
 }
@@ -89,7 +87,7 @@ private struct PlayerCardSilhouette: Shape {
 }
 
 enum PlayerCardLayout {
-    static let photoSize = CGSize(width: 156, height: 92)
+    static let photoDiameter: CGFloat = 128
 }
 
 struct PlayerCardShell<Photo: View>: View {
@@ -129,15 +127,12 @@ struct PlayerCardShell<Photo: View>: View {
             .padding(.top, 10)
 
             photo()
-                .frame(width: PlayerCardLayout.photoSize.width, height: PlayerCardLayout.photoSize.height)
-                .clipShape(Rectangle())
-                .mask {
-                    LinearGradient(
-                        colors: [.black, .black, .black.opacity(0)],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
+                .frame(width: PlayerCardLayout.photoDiameter, height: PlayerCardLayout.photoDiameter)
+                .clipShape(Circle())
+                .overlay {
+                    Circle().stroke(tier.highlight, lineWidth: 2)
                 }
+                .padding(.top, 6)
 
             Text(name.uppercased())
                 .font(.system(size: 14, weight: .heavy))
@@ -195,37 +190,5 @@ struct PlayerCardShell<Photo: View>: View {
                 .stroke(tier.highlight, lineWidth: 2)
         }
         .shadow(color: .black.opacity(0.3), radius: 10, y: 6)
-    }
-}
-
-struct PlayerCardView: View {
-    let player: SoccerPlayer
-    let effectiveOverall: Int
-    let upgradeLevels: [String: Int]
-
-    init(player: SoccerPlayer, effectiveOverall: Int, upgradeLevels: [String: Int] = [:]) {
-        self.player = player
-        self.effectiveOverall = effectiveOverall
-        self.upgradeLevels = upgradeLevels
-    }
-
-    private var totalUpgradeLevels: Int {
-        PlayerUpgrade.totalLevels(for: player.id, in: upgradeLevels)
-    }
-
-    var body: some View {
-        PlayerCardShell(
-            name: player.name,
-            position: player.position,
-            overall: effectiveOverall,
-            badgeText: totalUpgradeLevels > 0 ? "★ +\(totalUpgradeLevels)" : nil,
-            stats: PlayerCardStats.stats(for: player, effectiveOverall: effectiveOverall, levels: upgradeLevels)
-        ) {
-            PlayerPhotoView(
-                player: player,
-                cardWidth: PlayerCardLayout.photoSize.width,
-                cardHeight: PlayerCardLayout.photoSize.height
-            )
-        }
     }
 }

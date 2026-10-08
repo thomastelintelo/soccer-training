@@ -17,7 +17,7 @@ struct PlayerProgress {
         case 1...4: "Developing Player"
         case 5...9: "Rising Player"
         case 10...19: "Strong Player"
-        default: "Elite Trainer"
+        default: "Futbol Elite"
         }
     }
 
