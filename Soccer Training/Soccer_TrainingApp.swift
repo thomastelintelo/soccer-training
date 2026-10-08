@@ -470,6 +470,14 @@ struct PlayerSignInView: View {
     @State private var bestSkill = ""
     @State private var mainFocus = "None"
     @State private var showConfetti = false
+    @State private var teamCodeInput = ""
+    @State private var teamStore = TeamCloudKitStore()
+    @AppStorage("playerTeamCode") private var savedTeamCode = ""
+    @AppStorage("playerTeamMemberID") private var savedMemberID = ""
+
+    private var normalizedTeamCode: String {
+        String(teamCodeInput.uppercased().filter { $0.isLetter || $0.isNumber }.prefix(6))
+    }
 
     private let positions = [
         "Goalkeeper",
@@ -514,6 +522,22 @@ struct PlayerSignInView: View {
         case 15...17: "Finishing practice helps turn good team play into goals."
         case 18...21: "A clean first touch gives you more time for your next decision."
         default: ""
+        }
+    }
+
+    private func finishSignIn(_ trimmed: String) {
+        Haptics.success()
+        savedUsername = trimmed
+        savedAge = age
+        savedPosition = position
+        savedBestSkill = bestSkill
+        savedMainFocus = mainFocus
+        isSignedIn = true
+        withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
+            showConfetti = true
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.1) {
+            showConfetti = false
         }
     }
 
@@ -633,24 +657,53 @@ struct PlayerSignInView: View {
                         .clipShape(.rect(cornerRadius: 12))
                     }
 
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Have a team code? (optional)")
+                            .font(.headline)
+                        Text("Enter your coach's code and you'll join the team with the info above.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        TextField("TEAM CODE", text: $teamCodeInput)
+                            .textInputAutocapitalization(.characters)
+                            .autocorrectionDisabled()
+                            .font(.title3.bold())
+                            .multilineTextAlignment(.center)
+                            .padding()
+                            .background(Color.soccerSurface)
+                            .clipShape(.rect(cornerRadius: 12))
+                            .onChange(of: teamCodeInput) { _, _ in
+                                if teamCodeInput != normalizedTeamCode { teamCodeInput = normalizedTeamCode }
+                            }
+                        if let message = teamStore.errorMessage {
+                            Text(message).font(.footnote).foregroundStyle(.red)
+                        }
+                    }
+
                     Button {
                         let trimmed = username.trimmingCharacters(in: .whitespacesAndNewlines)
                         guard !trimmed.isEmpty, age > 0, !position.isEmpty, !bestSkill.isEmpty else {
                             Haptics.soft()
                             return
                         }
-                        Haptics.success()
-                        savedUsername = trimmed
-                        savedAge = age
-                        savedPosition = position
-                        savedBestSkill = bestSkill
-                        savedMainFocus = mainFocus
-                        isSignedIn = true
-                        withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
-                            showConfetti = true
-                        }
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.1) {
-                            showConfetti = false
+                        Task {
+                            if !normalizedTeamCode.isEmpty {
+                                let memberID = UUID(uuidString: savedMemberID) ?? UUID()
+                                guard normalizedTeamCode.count == 6,
+                                      await teamStore.joinTeam(
+                                        code: normalizedTeamCode, name: trimmed, age: age,
+                                        position: position, memberID: memberID
+                                      )
+                                else {
+                                    if normalizedTeamCode.count != 6 {
+                                        teamStore.errorMessage = "Enter the complete six-character team code."
+                                    }
+                                    Haptics.soft()
+                                    return
+                                }
+                                savedMemberID = (teamStore.joinedMemberID ?? memberID).uuidString
+                                savedTeamCode = normalizedTeamCode
+                            }
+                            finishSignIn(trimmed)
                         }
                     } label: {
                         Label("Create Player Profile", systemImage: "sparkles")
@@ -662,7 +715,7 @@ struct PlayerSignInView: View {
                             .foregroundStyle(.white)
                             .clipShape(.rect(cornerRadius: 14))
                     }
-                    .disabled(!canSignIn)
+                    .disabled(!canSignIn || teamStore.isLoading)
 
                     Button("Choose Coach Instead", action: onChooseDifferentRole)
                         .font(.headline)

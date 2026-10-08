@@ -212,6 +212,7 @@ struct PlayerTeamView: View {
     @AppStorage("playerTeamCode") private var teamCode = ""
     @AppStorage("playerTeamMemberID") private var memberIDText = ""
     @State private var store = TeamCloudKitStore()
+    @State private var isConfirmingLeave = false
 
     var body: some View {
         ScrollView {
@@ -233,6 +234,29 @@ struct PlayerTeamView: View {
         .task(id: teamCode) { if !teamCode.isEmpty { await store.loadTeam(code: teamCode) } }
         .refreshable { if !teamCode.isEmpty { await store.loadTeam(code: teamCode) } }
         .tint(Color.soccerAccent)
+        .toolbar {
+            if !teamCode.isEmpty {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Leave Team", role: .destructive) { isConfirmingLeave = true }
+                }
+            }
+        }
+        .confirmationDialog("Leave this team?", isPresented: $isConfirmingLeave, titleVisibility: .visible) {
+            Button("Leave Team", role: .destructive) {
+                Task {
+                    if let id = UUID(uuidString: memberIDText) {
+                        await store.leaveTeam(code: teamCode, memberID: id)
+                        guard store.errorMessage == nil else { return }
+                    }
+                    teamCode = ""
+                    memberIDText = ""
+                    Haptics.soft()
+                }
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("You'll be removed from the coach's roster. You can rejoin later with the team code.")
+        }
     }
 
     private var assignmentsView: some View {

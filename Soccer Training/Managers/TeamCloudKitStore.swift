@@ -43,8 +43,8 @@ final class TeamCloudKitStore {
         await perform {
             let record = try await self.database.record(for: Self.recordID(for: normalizedCode))
             var workspace = try self.read(record)
-            let registeredMembers = try await self.registeredMembers(code: normalizedCode)
-            Self.merge(registeredMembers, into: &workspace)
+            let registered = try await self.registeredMembers(code: normalizedCode)
+            Self.merge(registered.active, left: registered.left, into: &workspace)
             self.workspace = workspace
         }
     }
@@ -74,8 +74,8 @@ final class TeamCloudKitStore {
 
             try await self.saveMemberRegistration(member, code: normalizedCode)
 
-            let registeredMembers = try await self.registeredMembers(code: normalizedCode)
-            Self.merge(registeredMembers + [member], into: &workspace)
+            let registered = try await self.registeredMembers(code: normalizedCode)
+            Self.merge(registered.active + [member], left: registered.left.subtracting([member.id]), into: &workspace)
             self.workspace = workspace
         }
         return errorMessage == nil && workspace != nil
@@ -180,8 +180,8 @@ final class TeamCloudKitStore {
     private func update(code: String, mutation: (inout TeamWorkspace) -> Void) async throws {
         let record = try await database.record(for: Self.recordID(for: code))
         var latest = try read(record)
-        let registeredMembers = try await registeredMembers(code: code)
-        Self.merge(registeredMembers, into: &latest)
+        let registered = try await registeredMembers(code: code)
+        Self.merge(registered.active, left: registered.left, into: &latest)
         mutation(&latest)
         try write(latest, to: record)
         _ = try await database.save(record)
@@ -207,16 +207,39 @@ final class TeamCloudKitStore {
         }
     }
 
-    private func registeredMembers(code: String) async throws -> [TeamMember] {
+    private func registeredMembers(code: String) async throws -> (active: [TeamMember], left: Set<UUID>) {
         let recordIDs = (0..<Self.maximumTeamSize).map { Self.memberRecordID(code: code, slot: $0) }
-        let results = try await database.records(for: recordIDs, desiredKeys: ["member"])
+        let results = try await database.records(for: recordIDs, desiredKeys: ["member", "left"])
 
-        return results.values.compactMap { result in
+        var active: [TeamMember] = []
+        var left: Set<UUID> = []
+        for result in results.values {
             guard
                 case .success(let record) = result,
-                let data = record["member"] as? Data
-            else { return nil }
-            return try? decoder.decode(TeamMember.self, from: data)
+                let data = record["member"] as? Data,
+                let member = try? decoder.decode(TeamMember.self, from: data)
+            else { continue }
+            if (record["left"] as? Int ?? 0) == 1 { left.insert(member.id) } else { active.append(member) }
+        }
+        return (active, left)
+    }
+
+    /// Marks the player's registration as left so the coach's roster drops them.
+    func leaveTeam(code: String, memberID: UUID) async {
+        let normalizedCode = Self.normalize(code)
+        await perform {
+            let recordIDs = (0..<Self.maximumTeamSize).map { Self.memberRecordID(code: normalizedCode, slot: $0) }
+            let results = try await self.database.records(for: recordIDs, desiredKeys: ["member", "left"])
+            for case .success(let record) in results.values {
+                guard
+                    let data = record["member"] as? Data,
+                    let saved = try? self.decoder.decode(TeamMember.self, from: data),
+                    saved.id == memberID
+                else { continue }
+                record["left"] = 1 as CKRecordValue
+                _ = try await self.database.save(record)
+            }
+            self.workspace = nil
         }
     }
 
@@ -234,6 +257,7 @@ final class TeamCloudKitStore {
                 saved.id == member.id
             else { continue }
             existing["member"] = try encoder.encode(member) as CKRecordValue
+            existing["left"] = 0 as CKRecordValue
             _ = try await database.save(existing)
             return
         }
@@ -257,7 +281,14 @@ final class TeamCloudKitStore {
         throw TeamStoreError.teamFull
     }
 
-    private static func merge(_ members: [TeamMember], into workspace: inout TeamWorkspace) {
+    private static func merge(_ members: [TeamMember], left: Set<UUID> = [], into workspace: inout TeamWorkspace) {
+        if !left.isEmpty {
+            workspace.members.removeAll { left.contains($0.id) }
+            workspace.assignments.removeAll { $0.assignedMemberID.map(left.contains) ?? false }
+            var removed = workspace.removedMemberIDs ?? []
+            for id in left where !removed.contains(id) { removed.append(id) }
+            workspace.removedMemberIDs = removed
+        }
         let removedMemberIDs = Set(workspace.removedMemberIDs ?? [])
         for member in members where !removedMemberIDs.contains(member.id)
             && !workspace.members.contains(where: { $0.id == member.id }) {
