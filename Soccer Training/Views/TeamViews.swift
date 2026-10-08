@@ -10,6 +10,7 @@ struct CoachTeamView: View {
     @State private var showAssign = false
     @State private var assignmentTargetID = "team"
     @State private var playerPendingRemoval: TeamMember?
+    @State private var playerBeingEdited: TeamMember?
 
     var body: some View {
         NavigationStack {
@@ -35,6 +36,11 @@ struct CoachTeamView: View {
             }
             .sheet(isPresented: $showAssign) {
                 AssignTrainingSheet(store: store, initialTargetID: assignmentTargetID)
+            }
+            .sheet(item: $playerBeingEdited) { member in
+                EditPlayerSheet(member: member) { name, age, position in
+                    Task { await store.updatePlayer(member.id, name: name, age: age, position: position) }
+                }
             }
             .confirmationDialog(
                 "Remove \(playerPendingRemoval?.name ?? "this player")?",
@@ -141,6 +147,13 @@ struct CoachTeamView: View {
                                 Text("\(member.points) pts").font(.headline).foregroundStyle(Color.soccerAccent)
                                 Button("+10") { Task { await store.addPoints(10, to: member.id) } }
                                     .buttonStyle(.bordered)
+                                Button {
+                                    playerBeingEdited = member
+                                } label: {
+                                    Image(systemName: "pencil")
+                                }
+                                .buttonStyle(.bordered)
+                                .accessibilityLabel("Edit \(member.name)")
                                 Button(role: .destructive) {
                                     playerPendingRemoval = member
                                 } label: {
@@ -672,5 +685,50 @@ private struct CoachDrillOptionRow: View {
 private extension View {
     func teamField() -> some View {
         padding().background(Color.soccerSurface, in: RoundedRectangle(cornerRadius: 14))
+    }
+}
+
+struct EditPlayerSheet: View {
+    let member: TeamMember
+    let onSave: (String, Int, String) -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var name: String
+    @State private var age: Int
+    @State private var position: String
+
+    private let positions = ["Goalkeeper", "Defender", "Midfielder", "Winger", "Striker"]
+
+    init(member: TeamMember, onSave: @escaping (String, Int, String) -> Void) {
+        self.member = member
+        self.onSave = onSave
+        _name = State(initialValue: member.name)
+        _age = State(initialValue: member.age)
+        _position = State(initialValue: member.position)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                TextField("Player name", text: $name)
+                    .textInputAutocapitalization(.words)
+                Stepper("Age: \(age)", value: $age, in: 5...21)
+                Picker("Position", selection: $position) {
+                    ForEach(positions + (positions.contains(position) ? [] : [position]), id: \.self) { Text($0).tag($0) }
+                }
+            }
+            .navigationTitle("Edit Player")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        onSave(name.trimmingCharacters(in: .whitespacesAndNewlines), age, position)
+                        dismiss()
+                    }
+                    .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+        }
+        .presentationDetents([.medium])
     }
 }

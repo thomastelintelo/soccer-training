@@ -451,11 +451,12 @@ struct ProfileView: View {
             titleVisibility: .visible
         ) {
             Button("Sign Out", role: .destructive) {
+                PlayerProgress.resetStoredProgress()
                 isSignedIn = false
             }
             Button("Cancel", role: .cancel) { }
         } message: {
-            Text("Your points and training progress will stay saved.")
+            Text("Your points, level, and training progress will be erased.")
         }
     }
 

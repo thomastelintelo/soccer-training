@@ -89,6 +89,15 @@ final class TeamCloudKitStore {
         }
     }
 
+    func updatePlayer(_ memberID: UUID, name: String, age: Int, position: String) async {
+        await mutateCurrent { workspace in
+            guard let index = workspace.members.firstIndex(where: { $0.id == memberID }) else { return }
+            workspace.members[index].name = name.isEmpty ? workspace.members[index].name : name
+            workspace.members[index].age = age
+            workspace.members[index].position = position
+        }
+    }
+
     func toggleCaptain(_ memberID: UUID) async {
         await mutateCurrent { workspace in
             for index in workspace.members.indices {

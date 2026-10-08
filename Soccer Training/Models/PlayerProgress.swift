@@ -25,4 +25,17 @@ struct PlayerProgress {
     var xpUntilNextLevel: Int { Self.xpPerLevel - xpIntoLevel }
     var progressToNextLevel: Double { Double(xpIntoLevel) / Double(Self.xpPerLevel) }
 
+    /// UserDefaults keys that hold a player's training progress.
+    private static let storedKeys = [
+        "playerXP", "totalPoints", "categoryXP", "categoryMinutes", "totalTrainingMinutes",
+        "totalGoals", "totalShots", "totalPasses", "totalDribblingAttempts", "totalControls",
+        "totalSessions", "trainingStreak", "lastTrainingDate", "completedWeeklyTasks",
+        "completedWeeklyDays", "weeklyDrillSubstitutions", "weeklyProgressStart",
+        "seenAchievements", "soccerTestBests",
+    ]
+
+    /// Wipes all saved progress. Called when a player signs out.
+    static func resetStoredProgress() {
+        for key in storedKeys { UserDefaults.standard.removeObject(forKey: key) }
+    }
 }
