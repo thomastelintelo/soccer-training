@@ -23,7 +23,8 @@ final class TeamCloudKitStore {
                 coachName: coachName,
                 members: [],
                 assignments: [],
-                customDrills: []
+                customDrills: [],
+                schedule: []
             )
             let record = CKRecord(recordType: "FutbolTeam", recordID: Self.recordID(for: code))
             try self.write(workspace, to: record)
@@ -38,28 +39,53 @@ final class TeamCloudKitStore {
         guard !normalizedCode.isEmpty else { return }
         await perform {
             let record = try await self.database.record(for: Self.recordID(for: normalizedCode))
-            self.workspace = try self.read(record)
+            var workspace = try self.read(record)
+            let registeredMembers = try await self.registeredMembers(code: normalizedCode)
+            Self.merge(registeredMembers, into: &workspace)
+            self.workspace = workspace
         }
     }
 
     func joinTeam(code: String, name: String, age: Int, position: String, memberID: UUID) async -> Bool {
         let normalizedCode = Self.normalize(code)
+        guard normalizedCode.count == 6 else {
+            errorMessage = "Enter the complete six-character team code."
+            return false
+        }
+
         await perform {
-            try await self.update(code: normalizedCode) { workspace in
-                guard !workspace.members.contains(where: { $0.id == memberID }) else { return }
-                workspace.members.append(
-                    TeamMember(id: memberID, name: name, age: age, position: position, isCaptain: false, points: 0)
-                )
+            let teamRecord = try await self.database.record(for: Self.recordID(for: normalizedCode))
+            var workspace = try self.read(teamRecord)
+            let member = TeamMember(
+                id: memberID,
+                name: name.isEmpty ? "Player" : name,
+                age: age,
+                position: position,
+                isCaptain: false,
+                points: 0
+            )
+
+            let registeredMembers = try await self.registeredMembers(code: normalizedCode)
+            if !workspace.members.contains(where: { $0.id == memberID })
+                && !registeredMembers.contains(where: { $0.id == memberID }) {
+                try await self.saveMemberRegistration(member, code: normalizedCode)
             }
+
+            Self.merge(registeredMembers + [member], into: &workspace)
+            self.workspace = workspace
         }
         return errorMessage == nil && workspace != nil
     }
 
-    func addPlayer(name: String, age: Int, position: String) async {
+    func removePlayer(_ memberID: UUID) async {
         await mutateCurrent { workspace in
-            workspace.members.append(
-                TeamMember(id: UUID(), name: name, age: age, position: position, isCaptain: false, points: 0)
-            )
+            workspace.members.removeAll { $0.id == memberID }
+            workspace.assignments.removeAll { $0.assignedMemberID == memberID }
+            var removedMemberIDs = workspace.removedMemberIDs ?? []
+            if !removedMemberIDs.contains(memberID) {
+                removedMemberIDs.append(memberID)
+            }
+            workspace.removedMemberIDs = removedMemberIDs
         }
     }
 
@@ -104,6 +130,35 @@ final class TeamCloudKitStore {
         }
     }
 
+    func addScheduleItem(
+        weekday: String,
+        startTime: Date,
+        focus: String,
+        drillName: String,
+        durationMinutes: Int
+    ) async {
+        await mutateCurrent { workspace in
+            var schedule = workspace.schedule ?? []
+            schedule.append(
+                CoachScheduleItem(
+                    id: UUID(),
+                    weekday: weekday,
+                    startTime: startTime,
+                    focus: focus,
+                    drillName: drillName,
+                    durationMinutes: durationMinutes
+                )
+            )
+            workspace.schedule = schedule
+        }
+    }
+
+    func removeScheduleItem(_ itemID: UUID) async {
+        await mutateCurrent { workspace in
+            workspace.schedule?.removeAll { $0.id == itemID }
+        }
+    }
+
     private func mutateCurrent(_ mutation: @escaping (inout TeamWorkspace) -> Void) async {
         guard let code = workspace?.joinCode else { return }
         await perform { try await self.update(code: code, mutation: mutation) }
@@ -112,6 +167,8 @@ final class TeamCloudKitStore {
     private func update(code: String, mutation: (inout TeamWorkspace) -> Void) async throws {
         let record = try await database.record(for: Self.recordID(for: code))
         var latest = try read(record)
+        let registeredMembers = try await registeredMembers(code: code)
+        Self.merge(registeredMembers, into: &latest)
         mutation(&latest)
         try write(latest, to: record)
         _ = try await database.save(record)
@@ -126,8 +183,60 @@ final class TeamCloudKitStore {
             try await operation()
         } catch let error as CKError where error.code == .unknownItem {
             errorMessage = "That team code was not found. Check it and try again."
+        } catch let error as CKError where error.code == .notAuthenticated {
+            errorMessage = "Sign in to iCloud in Settings, then try joining again."
+        } catch let error as CKError where error.code == .permissionFailure {
+            errorMessage = "CloudKit denied access to this team. Ask the coach to reopen the team and try again."
+        } catch let error as CKError where error.code == .networkUnavailable || error.code == .networkFailure {
+            errorMessage = "The team could not be reached. Check the internet connection and try again."
         } catch {
-            errorMessage = "Could not connect to the team. Check iCloud and your internet connection."
+            errorMessage = "Could not join the team. Please try again in a moment."
+        }
+    }
+
+    private func registeredMembers(code: String) async throws -> [TeamMember] {
+        let recordIDs = (0..<Self.maximumTeamSize).map { Self.memberRecordID(code: code, slot: $0) }
+        let results = try await database.records(for: recordIDs, desiredKeys: ["member"])
+
+        return results.values.compactMap { result in
+            guard
+                case .success(let record) = result,
+                let data = record["member"] as? Data
+            else { return nil }
+            return try? decoder.decode(TeamMember.self, from: data)
+        }
+    }
+
+    private func saveMemberRegistration(_ member: TeamMember, code: String) async throws {
+        let occupiedResults = try await database.records(
+            for: (0..<Self.maximumTeamSize).map { Self.memberRecordID(code: code, slot: $0) },
+            desiredKeys: []
+        )
+
+        for slot in 0..<Self.maximumTeamSize {
+            let recordID = Self.memberRecordID(code: code, slot: slot)
+            guard case .failure = occupiedResults[recordID] else { continue }
+
+            let record = CKRecord(recordType: "FutbolTeamMember", recordID: recordID)
+            record["teamCode"] = code as CKRecordValue
+            record["member"] = try encoder.encode(member) as CKRecordValue
+
+            do {
+                _ = try await database.save(record)
+                return
+            } catch let error as CKError where error.code == .serverRecordChanged {
+                continue
+            }
+        }
+
+        throw TeamStoreError.teamFull
+    }
+
+    private static func merge(_ members: [TeamMember], into workspace: inout TeamWorkspace) {
+        let removedMemberIDs = Set(workspace.removedMemberIDs ?? [])
+        for member in members where !removedMemberIDs.contains(member.id)
+            && !workspace.members.contains(where: { $0.id == member.id }) {
+            workspace.members.append(member)
         }
     }
 
@@ -146,6 +255,12 @@ final class TeamCloudKitStore {
         CKRecord.ID(recordName: "FutbolEliteTeam-\(normalize(code))")
     }
 
+    private static let maximumTeamSize = 50
+
+    private static func memberRecordID(code: String, slot: Int) -> CKRecord.ID {
+        CKRecord.ID(recordName: "FutbolEliteTeam-\(normalize(code))-Member-\(slot)")
+    }
+
     private static func normalize(_ code: String) -> String {
         code.uppercased().filter { $0.isLetter || $0.isNumber }
     }
@@ -157,4 +272,5 @@ final class TeamCloudKitStore {
 
 private enum TeamStoreError: Error {
     case invalidData
+    case teamFull
 }

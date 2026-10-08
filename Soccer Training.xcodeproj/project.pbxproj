@@ -393,7 +393,7 @@
 				CODE_SIGN_ENTITLEMENTS = "Soccer Training/Soccer Training.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 4SCX82Q425;
+				DEVELOPMENT_TEAM = NQ4T2WQ48B;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Soccer-Training-Info.plist";
@@ -431,7 +431,7 @@
 				CODE_SIGN_ENTITLEMENTS = "Soccer Training/Soccer Training.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 4SCX82Q425;
+				DEVELOPMENT_TEAM = NQ4T2WQ48B;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Soccer-Training-Info.plist";
@@ -468,6 +468,7 @@
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = NQ4T2WQ48B;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = SoccerTrainingWidget/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = SoccerTrainingWidget;
@@ -498,6 +499,7 @@
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = NQ4T2WQ48B;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = SoccerTrainingWidget/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = SoccerTrainingWidget;

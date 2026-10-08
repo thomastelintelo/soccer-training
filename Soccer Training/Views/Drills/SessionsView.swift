@@ -7,8 +7,10 @@
 import SwiftUI
 
 struct SessionsView: View {
+    @Environment(PlusPurchaseStore.self) private var plusStore
     let topics: [Topic]
     @Binding var totalPoints: Int
+    @State private var showingPlus = false
 
     private let columns = [
         GridItem(.flexible(), spacing: 14),
@@ -26,12 +28,21 @@ struct SessionsView: View {
 
                     LazyVGrid(columns: columns, spacing: 14) {
                         ForEach(topics) { topic in
-                            NavigationLink {
-                                SessionCategoryView(topic: topic, totalPoints: $totalPoints)
-                            } label: {
-                                SessionCategoryCard(name: topic.name)
+                            if topic.name == "Plus Training" && !plusStore.isUnlocked {
+                                Button {
+                                    showingPlus = true
+                                } label: {
+                                    SessionCategoryCard(name: topic.name, isLocked: true)
+                                }
+                                .buttonStyle(.plain)
+                            } else {
+                                NavigationLink {
+                                    SessionCategoryView(topic: topic, totalPoints: $totalPoints)
+                                } label: {
+                                    SessionCategoryCard(name: topic.name, isLocked: false)
+                                }
+                                .buttonStyle(.plain)
                             }
-                            .buttonStyle(.plain)
                         }
                     }
                 }
@@ -41,6 +52,9 @@ struct SessionsView: View {
         .foregroundStyle(Color.soccerText)
         .navigationTitle("Sessions")
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showingPlus) {
+            FutbolElitePlusView()
+        }
     }
 
     private var header: some View {
@@ -76,6 +90,7 @@ struct SessionsView: View {
 
 private struct SessionCategoryCard: View {
     let name: String
+    let isLocked: Bool
 
     private var icon: String {
         DrillPresentation.icon(for: name)
@@ -119,7 +134,10 @@ private struct SessionCategoryCard: View {
 
             Spacer(minLength: 0)
 
-            Label("\(1 + SessionTemplateCatalog.templates(for: name).count) sessions", systemImage: "arrow.right.circle.fill")
+            Label(
+                isLocked ? "Unlock Plus" : "\(1 + SessionTemplateCatalog.templates(for: name).count) sessions",
+                systemImage: isLocked ? "lock.fill" : "arrow.right.circle.fill"
+            )
                 .font(.caption.weight(.bold))
                 .foregroundStyle(Color.soccerAccent)
         }

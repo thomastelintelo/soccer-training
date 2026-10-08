@@ -682,6 +682,8 @@ struct PlayerSignInView: View {
 
 @main
 struct Soccer_TrainingApp: App {
+    @State private var plusStore = PlusPurchaseStore()
+
     init() {
         DrillTimerLiveActivity.shared.configure()
         Self.migrateCategoryProgressIfNeeded()
@@ -725,6 +727,9 @@ struct Soccer_TrainingApp: App {
     var body: some Scene {
         WindowGroup {
             LaunchContainerView()
+                .environment(plusStore)
+                .task { await plusStore.prepare() }
+                .task { await plusStore.observeTransactionUpdates() }
                 .preferredColorScheme(.light)
         }
     }

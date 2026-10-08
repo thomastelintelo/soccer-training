@@ -29,7 +29,6 @@ struct DrillTimerView: View {
     @AppStorage("totalSessions") private var totalSessions = 0
     @AppStorage("trainingStreak") private var trainingStreak = 0
     @AppStorage("lastTrainingDate") private var lastTrainingDate = ""
-    @AppStorage("rewardBoxes") private var rewardBoxes = 0
     @State private var timeLeft: Int
     @State private var timerActive = false
     @State private var timer: Timer?
@@ -1560,7 +1559,6 @@ struct DrillTimerView: View {
         guard !didRecordProgress else { return }
         didRecordProgress = true
 
-        let previousXP = playerXP
         awardedPoints = pointsAward
         awardedXP = xpAward
         totalPoints += pointsAward
@@ -1595,10 +1593,6 @@ struct DrillTimerView: View {
 
         updateTrainingStreak()
 
-        let levelsGained = PlayerProgress.levelsGained(fromXP: previousXP, toXP: playerXP)
-        if levelsGained > 0 {
-            rewardBoxes += levelsGained
-        }
     }
 
     private func updateTrainingStreak() {

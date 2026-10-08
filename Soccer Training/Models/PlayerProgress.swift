@@ -25,9 +25,4 @@ struct PlayerProgress {
     var xpUntilNextLevel: Int { Self.xpPerLevel - xpIntoLevel }
     var progressToNextLevel: Double { Double(xpIntoLevel) / Double(Self.xpPerLevel) }
 
-    /// How many levels (and therefore reward boxes) were gained going from a
-    /// previous XP total to this one.
-    static func levelsGained(fromXP previousXP: Int, toXP newXP: Int) -> Int {
-        PlayerProgress(xp: newXP).level - PlayerProgress(xp: previousXP).level
-    }
 }

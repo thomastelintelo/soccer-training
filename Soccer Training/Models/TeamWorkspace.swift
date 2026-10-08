@@ -26,6 +26,15 @@ struct TeamCustomDrill: Codable, Identifiable, Hashable {
     var equipment: String
 }
 
+struct CoachScheduleItem: Codable, Identifiable, Hashable {
+    let id: UUID
+    var weekday: String
+    var startTime: Date
+    var focus: String
+    var drillName: String
+    var durationMinutes: Int
+}
+
 struct TeamWorkspace: Codable, Identifiable, Hashable {
     var id: String { joinCode }
     var teamName: String
@@ -35,4 +44,6 @@ struct TeamWorkspace: Codable, Identifiable, Hashable {
     var members: [TeamMember]
     var assignments: [TeamAssignment]
     var customDrills: [TeamCustomDrill]
+    var schedule: [CoachScheduleItem]?
+    var removedMemberIDs: [UUID]? = nil
 }

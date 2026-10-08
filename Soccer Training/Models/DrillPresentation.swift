@@ -55,7 +55,9 @@ enum DrillPresentation {
 
     static func imageName(for category: String) -> String {
         switch category {
-        case "Indoor Training", "Plus Training", "First Touch", "Soccer IQ":
+        case "Indoor Training":
+            "IndoorSoccer1"
+        case "Plus Training", "First Touch", "Soccer IQ":
             "DrillControl"
         case "Technique":
             "DrillDribbling"
@@ -89,11 +91,11 @@ enum DrillPresentation {
     }
 
     static func imageName(for drillName: String, category: String) -> String {
-        // Indoor sessions get a visibly different photo from their category's usual
-        // outdoor shot. Only ever points at image assets that actually ship with the
-        // app (no "3", "4", ... that would render as a blank/missing image).
-        if isIndoor(drillName) {
-            return category == "Passing" ? "DrillPassing2" : "DrillDribbling2"
+        // Every indoor drill uses one of several purpose-built indoor soccer photos.
+        // The stable hash keeps each drill's artwork consistent between launches.
+        if category == "Indoor Training" || isIndoor(drillName) {
+            let indoorImages = ["IndoorSoccer1", "IndoorSoccer2", "IndoorSoccer3", "IndoorSoccer4"]
+            return indoorImages[stableHash(drillName) % indoorImages.count]
         }
 
         let alternateNames: [String: Set<String>] = [

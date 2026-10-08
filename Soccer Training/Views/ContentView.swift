@@ -221,10 +221,12 @@ struct ContentView: View {
                 Label("Sessions", systemImage: "list.bullet.clipboard.fill")
             }
 
-            PlayerTeamView()
-                .tabItem {
-                    Label("Team", systemImage: "person.3.fill")
-                }
+            NavigationStack {
+                SoccerTestsView()
+            }
+            .tabItem {
+                Label("Tests", systemImage: "checkmark.seal.fill")
+            }
 
             NavigationStack {
                 ProfileView(

@@ -5,9 +5,11 @@
 import SwiftUI
 
 struct AllDrillsView: View {
+    @Environment(PlusPurchaseStore.self) private var plusStore
     let topics: [Topic]
     @Binding var totalPoints: Int
     @State private var searchText = ""
+    @State private var showingPlus = false
 
     private let columns = [
         GridItem(.flexible(), spacing: 14),
@@ -46,19 +48,33 @@ struct AllDrillsView: View {
 
                     LazyVGrid(columns: columns, spacing: 14) {
                         ForEach(filteredTopics) { topic in
-                            NavigationLink {
-                                DrillListView(
-                                    topic: topic.name,
-                                    drills: topic.drills,
-                                    totalPoints: $totalPoints
-                                )
-                            } label: {
+                            if topic.name == "Plus Training" && !plusStore.isUnlocked {
+                                Button {
+                                    showingPlus = true
+                                } label: {
+                                    DrillCategoryCard(
+                                        name: topic.name,
+                                        drillCount: topic.drills.count,
+                                        isLocked: true
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                            } else {
+                                NavigationLink {
+                                    DrillListView(
+                                        topic: topic.name,
+                                        drills: topic.drills,
+                                        totalPoints: $totalPoints
+                                    )
+                                } label: {
                                 DrillCategoryCard(
                                     name: topic.name,
-                                    drillCount: topic.drills.count
+                                    drillCount: topic.drills.count,
+                                    isLocked: false
                                 )
+                                }
+                                .buttonStyle(.plain)
                             }
-                            .buttonStyle(.plain)
                         }
                     }
                 }
@@ -69,6 +85,9 @@ struct AllDrillsView: View {
         .navigationTitle("Training Center")
         .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $searchText, prompt: "Search drills or categories")
+        .sheet(isPresented: $showingPlus) {
+            FutbolElitePlusView()
+        }
     }
 }
 
@@ -119,6 +138,7 @@ private struct DrillsHeaderView: View {
 private struct DrillCategoryCard: View {
     let name: String
     let drillCount: Int
+    let isLocked: Bool
 
     private var icon: String {
         DrillPresentation.icon(for: name)
@@ -151,13 +171,13 @@ private struct DrillCategoryCard: View {
                     Image(systemName: icon)
                     Text(name.uppercased())
                     Spacer()
-                    Image(systemName: "arrow.up.right.circle.fill")
+                    Image(systemName: isLocked ? "lock.fill" : "arrow.up.right.circle.fill")
                 }
                 .font(.headline)
                 .fontWeight(.heavy)
                 .foregroundStyle(.white)
 
-                Text("\(drillCount) training sessions")
+                Text(isLocked ? "PLUS • \(drillCount) elite drills" : "\(drillCount) training sessions")
                     .font(.subheadline)
                     .fontWeight(.bold)
                     .foregroundStyle(.white)

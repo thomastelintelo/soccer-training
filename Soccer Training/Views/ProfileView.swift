@@ -23,10 +23,7 @@ struct ProfileView: View {
     @AppStorage("totalControls") private var totalControls = 0
     @AppStorage("totalSessions") private var totalSessions = 0
     @AppStorage("trainingStreak") private var trainingStreak = 0
-    @AppStorage("rewardBoxes") private var rewardBoxes = 0
-    @AppStorage("rewardBoxFixVersion") private var rewardBoxFixVersion = 0
     @AppStorage("seenAchievements") private var seenAchievementsText = ""
-    @State private var rewardBoxMessage = ""
     @State private var isShowingSignOutConfirmation = false
     @State private var isShowingCamera = false
     @State private var isShowingCameraUnavailable = false
@@ -176,6 +173,9 @@ struct ProfileView: View {
                     stats: cardStats
                 )
 
+                SoccerTestProfileSummary()
+                PlayerJoinTeamProfileCard()
+
                 VStack(spacing: 8) {
                     Text("Level \(level) • \(levelTitle)")
                         .font(.title2)
@@ -198,7 +198,7 @@ struct ProfileView: View {
                     ProgressView(value: progress)
                         .tint(Color.soccerAccent)
 
-                    Text("\(playerProgress.xpUntilNextLevel) XP until Level \(level + 1) • Reward: one reward box")
+                    Text("\(playerProgress.xpUntilNextLevel) XP until Level \(level + 1)")
                         .font(.subheadline)
                         .foregroundStyle(Color.soccerAccent)
                 }
@@ -261,36 +261,6 @@ struct ProfileView: View {
                         }
                     }
                 }
-                .padding()
-                .background(Color.soccerSurface)
-                .clipShape(.rect(cornerRadius: 16))
-
-                VStack(alignment: .leading, spacing: 12) {
-                    Label("Reward Boxes: \(rewardBoxes)", systemImage: "shippingbox.fill")
-                        .font(.title2)
-                        .fontWeight(.heavy)
-                        .foregroundStyle(Color.soccerGold)
-
-                    Text("Earn one box every time you level up. Each box contains 150 points.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-
-                    Button("Open Reward Box") {
-                        guard rewardBoxes > 0 else { return }
-                        totalPoints += 150
-                        rewardBoxes -= 1
-                        rewardBoxMessage = "You received 150 points! Your new balance is \(totalPoints) points."
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(rewardBoxes == 0)
-
-                    if !rewardBoxMessage.isEmpty {
-                        Label(rewardBoxMessage, systemImage: "checkmark.circle.fill")
-                            .font(.headline)
-                            .foregroundStyle(Color.soccerAccent)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding()
                 .background(Color.soccerSurface)
                 .clipShape(.rect(cornerRadius: 16))
@@ -461,11 +431,6 @@ struct ProfileView: View {
         .foregroundStyle(Color.soccerText)
         .navigationTitle("Profile")
         .onAppear {
-            if rewardBoxFixVersion < 1 {
-                rewardBoxes += 1
-                rewardBoxFixVersion = 1
-                rewardBoxMessage = "Your missing reward box has been returned."
-            }
             checkForNewAchievements()
         }
         .sheet(isPresented: $isShowingCamera) {
@@ -522,7 +487,6 @@ struct ProfileView: View {
         lastTrainingDate = ""
         completedWeeklyTasks = ""
         completedWeeklyDays = ""
-        rewardBoxes = 0
         devResetMessage = "Level and training progress reset."
         Haptics.soft()
     }

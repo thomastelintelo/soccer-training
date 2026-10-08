@@ -218,6 +218,11 @@ struct CoachContentView: View {
                     Label("Team", systemImage: "person.3.fill")
                 }
 
+            CoachScheduleView()
+                .tabItem {
+                    Label("Schedule", systemImage: "calendar.badge.clock")
+                }
+
             CoachCustomDrillsView()
                 .tabItem {
                     Label("Create", systemImage: "square.and.pencil")
@@ -347,7 +352,7 @@ private struct CoachDrillsTabView: View {
                 .fontWeight(.heavy)
                 .foregroundStyle(.white)
 
-            Text("Browse 50 team drills. Filter by age or skill, then open any drill for equipment and setup.")
+            Text("Browse \(CoachDrillLibrary.allDrills.count) team drills. Filter by age or skill, then open any drill for equipment and setup.")
                 .font(.headline)
                 .foregroundStyle(.white.opacity(0.85))
 
@@ -567,6 +572,26 @@ private struct CoachProfileView: View {
                             icon: "list.bullet.clipboard.fill"
                         )
                     }
+
+                    NavigationLink {
+                        CoachPlusView()
+                    } label: {
+                        HStack {
+                            Label("Coach Plus", systemImage: "crown.fill")
+                                .font(.headline)
+                            Spacer()
+                            Text("Advanced plans")
+                                .font(.subheadline)
+                            Image(systemName: "chevron.right")
+                        }
+                        .padding()
+                        .foregroundStyle(.white)
+                        .background(
+                            LinearGradient(colors: [Color.soccerAccent, .purple], startPoint: .leading, endPoint: .trailing),
+                            in: RoundedRectangle(cornerRadius: 16)
+                        )
+                    }
+                    .buttonStyle(.plain)
 
                     Button(role: .destructive) {
                         showSignOutConfirmation = true

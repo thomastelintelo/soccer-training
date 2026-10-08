@@ -7,8 +7,9 @@ struct CoachTeamView: View {
     @AppStorage("coachTeamCode") private var teamCode = ""
     @State private var store = TeamCloudKitStore()
     @State private var teamName = ""
-    @State private var showAddPlayer = false
     @State private var showAssign = false
+    @State private var assignmentTargetID = "team"
+    @State private var playerPendingRemoval: TeamMember?
 
     var body: some View {
         NavigationStack {
@@ -19,13 +20,41 @@ struct CoachTeamView: View {
             .navigationTitle("My Team")
             .task(id: teamCode) {
                 if teamName.isEmpty { teamName = savedTeamName }
-                if !teamCode.isEmpty { await store.loadTeam(code: teamCode) }
+                guard !teamCode.isEmpty else { return }
+
+                // Player registrations are separate CloudKit records so players
+                // using another iCloud account can join safely. Poll while this
+                // screen is visible so new players appear without reopening it.
+                while !Task.isCancelled {
+                    await store.loadTeam(code: teamCode)
+                    try? await Task.sleep(for: .seconds(5))
+                }
             }
             .refreshable {
                 if !teamCode.isEmpty { await store.loadTeam(code: teamCode) }
             }
-            .sheet(isPresented: $showAddPlayer) { AddPlayerSheet(store: store) }
-            .sheet(isPresented: $showAssign) { AssignDrillSheet(store: store) }
+            .sheet(isPresented: $showAssign) {
+                AssignTrainingSheet(store: store, initialTargetID: assignmentTargetID)
+            }
+            .confirmationDialog(
+                "Remove \(playerPendingRemoval?.name ?? "this player")?",
+                isPresented: Binding(
+                    get: { playerPendingRemoval != nil },
+                    set: { if !$0 { playerPendingRemoval = nil } }
+                ),
+                titleVisibility: .visible
+            ) {
+                Button("Remove Player", role: .destructive) {
+                    guard let memberID = playerPendingRemoval?.id else { return }
+                    playerPendingRemoval = nil
+                    Task { await store.removePlayer(memberID) }
+                }
+                Button("Cancel", role: .cancel) {
+                    playerPendingRemoval = nil
+                }
+            } message: {
+                Text("This player and their individual assignments will be removed from the team.")
+            }
         }
         .tint(Color.soccerAccent)
     }
@@ -83,33 +112,60 @@ struct CoachTeamView: View {
                     HStack {
                         Text("Players (\(team.members.count))").font(.title2.bold())
                         Spacer()
-                        Button("Add Player", systemImage: "person.badge.plus") { showAddPlayer = true }
+                        Button {
+                            Task { await store.loadTeam(code: teamCode) }
+                        } label: {
+                            Label("Check for Players", systemImage: "arrow.clockwise")
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(store.isLoading)
                     }
                     if team.members.isEmpty {
-                        Text("Share the code, or add a player yourself.").foregroundStyle(.secondary)
+                        Text("Share the team code. Players appear here automatically after they join.").foregroundStyle(.secondary)
                             .frame(maxWidth: .infinity).padding().background(Color.soccerSurface, in: RoundedRectangle(cornerRadius: 16))
                     }
                     ForEach(team.members) { member in
-                        HStack {
-                            Button {
-                                Task { await store.toggleCaptain(member.id) }
-                            } label: {
-                                Image(systemName: member.isCaptain ? "star.fill" : "star")
-                                    .font(.title2).foregroundStyle(member.isCaptain ? .yellow : .secondary)
-                            }
-                            VStack(alignment: .leading) {
-                                Text(member.name).font(.headline)
-                                Text("Age \(member.age) • \(member.position)").font(.caption).foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            Text("\(member.points) pts").font(.headline).foregroundStyle(Color.soccerAccent)
-                            Button("+10") { Task { await store.addPoints(10, to: member.id) } }
+                        VStack(spacing: 12) {
+                            HStack {
+                                Button {
+                                    Task { await store.toggleCaptain(member.id) }
+                                } label: {
+                                    Image(systemName: member.isCaptain ? "star.fill" : "star")
+                                        .font(.title2).foregroundStyle(member.isCaptain ? .yellow : .secondary)
+                                }
+                                VStack(alignment: .leading) {
+                                    Text(member.name).font(.headline)
+                                    Text("Age \(member.age) • \(member.position)").font(.caption).foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                Text("\(member.points) pts").font(.headline).foregroundStyle(Color.soccerAccent)
+                                Button("+10") { Task { await store.addPoints(10, to: member.id) } }
+                                    .buttonStyle(.bordered)
+                                Button(role: .destructive) {
+                                    playerPendingRemoval = member
+                                } label: {
+                                    Image(systemName: "trash")
+                                }
                                 .buttonStyle(.bordered)
+                                .accessibilityLabel("Remove \(member.name)")
+                            }
+
+                            Button {
+                                assignmentTargetID = member.id.uuidString
+                                showAssign = true
+                            } label: {
+                                Label("Assign Training to \(member.name)", systemImage: "paperplane.fill")
+                                    .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(.bordered)
                         }.padding().background(Color.soccerSurface, in: RoundedRectangle(cornerRadius: 16))
                     }
 
-                    Button { showAssign = true } label: {
-                        Label("Assign a Drill", systemImage: "paperplane.fill")
+                    Button {
+                        assignmentTargetID = "team"
+                        showAssign = true
+                    } label: {
+                        Label("Assign Training to Whole Team", systemImage: "person.3.fill")
                             .font(.headline).frame(maxWidth: .infinity).padding()
                     }.buttonStyle(.borderedProminent)
 
@@ -142,46 +198,28 @@ struct PlayerTeamView: View {
     @AppStorage("playerPosition") private var playerPosition = ""
     @AppStorage("playerTeamCode") private var teamCode = ""
     @AppStorage("playerTeamMemberID") private var memberIDText = ""
-    @State private var enteredCode = ""
     @State private var store = TeamCloudKitStore()
 
-    private var memberID: UUID {
-        if let id = UUID(uuidString: memberIDText) { return id }
-        return UUID()
-    }
-
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    if teamCode.isEmpty { joinView } else { assignmentsView }
-                }.padding()
-            }
-            .background(SoccerBackgroundView()).navigationTitle("My Team")
-            .task(id: teamCode) { if !teamCode.isEmpty { await store.loadTeam(code: teamCode) } }
-            .refreshable { if !teamCode.isEmpty { await store.loadTeam(code: teamCode) } }
-        }.tint(Color.soccerAccent)
-    }
-
-    private var joinView: some View {
-        VStack(spacing: 18) {
-            Image(systemName: "number.circle.fill").font(.system(size: 72)).foregroundStyle(Color.soccerAccent)
-            Text("Join Your Team").font(.largeTitle.bold())
-            Text("Enter the 6-character code from your coach.").foregroundStyle(.secondary)
-            TextField("TEAM CODE", text: $enteredCode).textInputAutocapitalization(.characters)
-                .autocorrectionDisabled().font(.title2.bold()).multilineTextAlignment(.center).teamField()
-            Button("Join Team") {
-                Task {
-                    let id = memberIDText.isEmpty ? UUID() : memberID
-                    if await store.joinTeam(code: enteredCode, name: playerName, age: playerAge, position: playerPosition, memberID: id) {
-                        memberIDText = id.uuidString
-                        teamCode = enteredCode.uppercased().filter { $0.isLetter || $0.isNumber }
-                        Haptics.success()
-                    }
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                if teamCode.isEmpty {
+                    ContentUnavailableView(
+                        "Join a Team from Profile",
+                        systemImage: "person.badge.plus",
+                        description: Text("Return to your Profile and enter the code from your coach.")
+                    )
+                } else {
+                    assignmentsView
                 }
-            }.buttonStyle(.borderedProminent).disabled(store.isLoading || enteredCode.count < 6)
-            if let error = store.errorMessage { Text(error).foregroundStyle(.red).font(.footnote) }
-        }.frame(maxWidth: .infinity)
+            }
+            .padding()
+        }
+        .background(SoccerBackgroundView())
+        .navigationTitle("My Team")
+        .task(id: teamCode) { if !teamCode.isEmpty { await store.loadTeam(code: teamCode) } }
+        .refreshable { if !teamCode.isEmpty { await store.loadTeam(code: teamCode) } }
+        .tint(Color.soccerAccent)
     }
 
     private var assignmentsView: some View {
@@ -206,6 +244,150 @@ struct PlayerTeamView: View {
                     }
                 }
             } else { ProgressView("Loading team…").frame(maxWidth: .infinity).padding(.top, 80) }
+        }
+    }
+}
+
+struct PlayerJoinTeamProfileCard: View {
+    @AppStorage("playerUsername") private var playerName = ""
+    @AppStorage("playerAge") private var playerAge = 0
+    @AppStorage("playerPosition") private var playerPosition = ""
+    @AppStorage("playerTeamCode") private var teamCode = ""
+    @AppStorage("playerTeamMemberID") private var memberIDText = ""
+    @State private var enteredCode = ""
+    @State private var store = TeamCloudKitStore()
+    @State private var isEnteringPlayerDetails = false
+    @State private var isShowingTeam = false
+
+    private let positions = ["Goalkeeper", "Defender", "Midfielder", "Winger", "Striker"]
+
+    private var normalizedCode: String {
+        String(enteredCode.uppercased().filter { $0.isLetter || $0.isNumber }.prefix(6))
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label(teamCode.isEmpty ? "Join a Team" : "Your Team", systemImage: "person.3.fill")
+                .font(.title2.bold())
+
+            if teamCode.isEmpty {
+                Text(
+                    isEnteringPlayerDetails
+                        ? "Add your player information to finish joining."
+                        : "Enter the six-character code from your coach."
+                )
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
+                if isEnteringPlayerDetails {
+                    TextField("Player name", text: $playerName)
+                        .textInputAutocapitalization(.words)
+                        .teamField()
+
+                    Stepper("Age: \(playerAge)", value: $playerAge, in: 5...21)
+                        .teamField()
+
+                    Picker("Position", selection: $playerPosition) {
+                        ForEach(positions, id: \.self) { position in
+                            Text(position).tag(position)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .teamField()
+
+                    HStack {
+                        Button("Back") {
+                            withAnimation(.snappy) {
+                                isEnteringPlayerDetails = false
+                            }
+                        }
+                        .buttonStyle(.bordered)
+
+                        Button("Join Team", systemImage: "person.badge.plus") {
+                            Task { await joinTeam() }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(
+                            store.isLoading
+                                || playerName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                        )
+                    }
+                } else {
+                    TextField("TEAM CODE", text: $enteredCode)
+                        .textInputAutocapitalization(.characters)
+                        .autocorrectionDisabled()
+                        .font(.title3.bold())
+                        .multilineTextAlignment(.center)
+                        .teamField()
+                        .onChange(of: enteredCode) { _, _ in
+                            if enteredCode != normalizedCode {
+                                enteredCode = normalizedCode
+                            }
+                        }
+
+                    Button("Continue", systemImage: "arrow.right.circle.fill") {
+                        Task { await showPlayerDetails() }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(store.isLoading || normalizedCode.count != 6)
+                }
+            } else {
+                Text("Team code: \(teamCode)")
+                    .font(.headline)
+                    .foregroundStyle(Color.soccerAccent)
+                Text("See drills and points shared by your coach.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
+                NavigationLink {
+                    PlayerTeamView()
+                } label: {
+                    Label("Open My Team", systemImage: "person.3.fill")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+            }
+
+            if let errorMessage = store.errorMessage {
+                Text(errorMessage).font(.footnote).foregroundStyle(.red)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding()
+        .background(Color.soccerSurface, in: RoundedRectangle(cornerRadius: 18))
+        .navigationDestination(isPresented: $isShowingTeam) {
+            PlayerTeamView()
+        }
+    }
+
+    private func showPlayerDetails() async {
+        await store.loadTeam(code: normalizedCode)
+        guard store.workspace != nil, store.errorMessage == nil else { return }
+
+        if !(5...21).contains(playerAge) {
+            playerAge = 10
+        }
+        if !positions.contains(playerPosition) {
+            playerPosition = "Midfielder"
+        }
+        withAnimation(.snappy) {
+            isEnteringPlayerDetails = true
+        }
+    }
+
+    private func joinTeam() async {
+        let memberID = UUID(uuidString: memberIDText) ?? UUID()
+        if await store.joinTeam(
+            code: normalizedCode,
+            name: playerName.trimmingCharacters(in: .whitespacesAndNewlines),
+            age: playerAge,
+            position: playerPosition,
+            memberID: memberID
+        ) {
+            memberIDText = memberID.uuidString
+            teamCode = normalizedCode
+            Haptics.success()
+            isShowingTeam = true
         }
     }
 }
@@ -253,38 +435,237 @@ struct CoachCustomDrillsView: View {
     }
 }
 
-private struct AddPlayerSheet: View {
+private enum TrainingAssignmentType: String, CaseIterable, Identifiable {
+    case drill = "Drill"
+    case task = "Custom Task"
+
+    var id: Self { self }
+}
+
+private struct AssignTrainingSheet: View {
     @Environment(\.dismiss) private var dismiss
     let store: TeamCloudKitStore
-    @State private var name = ""
-    @State private var age = 10
-    @State private var position = "Midfielder"
+    @State private var selectedDrillID = CoachDrillLibrary.allDrills.first.map { "built-in-\($0.id)" } ?? ""
+    @State private var targetID: String
+    @State private var assignmentType = TrainingAssignmentType.drill
+    @State private var taskTitle = ""
+    @State private var taskInstructions = ""
+    @State private var taskEquipment = ""
+
+    init(store: TeamCloudKitStore, initialTargetID: String) {
+        self.store = store
+        _targetID = State(initialValue: initialTargetID)
+    }
+
+    private var options: [CoachDrillOption] {
+        CoachDrillOption.options(customDrills: store.workspace?.customDrills ?? [])
+    }
+
+    private var selectedOption: CoachDrillOption? {
+        options.first { $0.id == selectedDrillID }
+    }
+
+    private var canSend: Bool {
+        switch assignmentType {
+        case .drill:
+            selectedOption != nil
+        case .task:
+            !taskTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                && !taskInstructions.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+    }
+
     var body: some View {
-        NavigationStack { Form {
-            TextField("Player name", text: $name)
-            Stepper("Age: \(age)", value: $age, in: 5...21)
-            Picker("Position", selection: $position) { ForEach(["Goalkeeper", "Defender", "Midfielder", "Winger", "Striker"], id: \.self) { Text($0) } }
-        }.navigationTitle("Add Player").toolbar { ToolbarItem(placement: .confirmationAction) { Button("Add") { Task { await store.addPlayer(name: name, age: age, position: position); dismiss() } }.disabled(name.isEmpty) } } }
+        NavigationStack {
+            Form {
+                Section("Assign to") {
+                    Picker("Player", selection: $targetID) {
+                        Text("Whole team").tag("team")
+                        ForEach(store.workspace?.members ?? []) { member in
+                            Text(member.name).tag(member.id.uuidString)
+                        }
+                    }
+                }
+
+                Section("Training type") {
+                    Picker("Training type", selection: $assignmentType) {
+                        ForEach(TrainingAssignmentType.allCases) { type in
+                            Text(type.rawValue).tag(type)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                }
+
+                if assignmentType == .drill {
+                    Section("Choose a drill") {
+                        NavigationLink {
+                            CoachDrillOptionPicker(options: options, selection: $selectedDrillID)
+                        } label: {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(selectedOption?.name ?? "Select a drill").font(.headline)
+                                Text(selectedOption?.category ?? "Browse all drills")
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+
+                    if let selectedOption {
+                        Section("What the player will see") {
+                            Text(selectedOption.instructions)
+                            Label(selectedOption.equipment, systemImage: "shippingbox.fill")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                } else {
+                    Section("Custom task") {
+                        TextField("Task name", text: $taskTitle)
+                        TextField("Instructions", text: $taskInstructions, axis: .vertical)
+                            .lineLimit(3...6)
+                        TextField("Equipment (optional)", text: $taskEquipment)
+                    }
+                }
+            }
+            .navigationTitle("Assign Training")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Send") {
+                        Task { await sendAssignment() }
+                    }
+                    .disabled(!canSend || store.isLoading)
+                }
+            }
+        }
+    }
+
+    private func sendAssignment() async {
+        let assignment: (title: String, details: String, equipment: String)
+        switch assignmentType {
+        case .drill:
+            guard let selectedOption else { return }
+            assignment = (selectedOption.name, selectedOption.instructions, selectedOption.equipment)
+        case .task:
+            assignment = (
+                taskTitle.trimmingCharacters(in: .whitespacesAndNewlines),
+                taskInstructions.trimmingCharacters(in: .whitespacesAndNewlines),
+                taskEquipment.trimmingCharacters(in: .whitespacesAndNewlines)
+            )
+        }
+
+        await store.assign(
+            title: assignment.title,
+            details: assignment.details,
+            equipment: assignment.equipment,
+            memberID: UUID(uuidString: targetID)
+        )
+        if store.errorMessage == nil {
+            Haptics.success()
+            dismiss()
+        }
     }
 }
 
-private struct AssignDrillSheet: View {
+struct CoachDrillOption: Identifiable, Hashable {
+    let id: String
+    let name: String
+    let category: String
+    let instructions: String
+    let equipment: String
+    let durationMinutes: Int
+
+    static func options(customDrills: [TeamCustomDrill]) -> [CoachDrillOption] {
+        let builtIn = CoachDrillLibrary.allDrills.map { drill in
+            CoachDrillOption(
+                id: "built-in-\(drill.id)",
+                name: drill.name,
+                category: drill.category.rawValue,
+                instructions: "\(drill.setup) Coaching focus: \(drill.coachingFocus)",
+                equipment: drill.equipment.joined(separator: ", "),
+                durationMinutes: drill.durationMinutes
+            )
+        }
+        let custom = customDrills.map { drill in
+            CoachDrillOption(
+                id: "custom-\(drill.id.uuidString)",
+                name: drill.name,
+                category: drill.category,
+                instructions: drill.instructions,
+                equipment: drill.equipment,
+                durationMinutes: 15
+            )
+        }
+        return custom + builtIn
+    }
+}
+
+struct CoachDrillOptionPicker: View {
+    let options: [CoachDrillOption]
+    @Binding var selection: String
     @Environment(\.dismiss) private var dismiss
-    let store: TeamCloudKitStore
-    @State private var title = ""
-    @State private var details = ""
-    @State private var equipment = ""
-    @State private var targetID = "team"
+    @State private var searchText = ""
+
+    private var filteredOptions: [CoachDrillOption] {
+        guard !searchText.isEmpty else { return options }
+        return options.filter {
+            $0.name.localizedCaseInsensitiveContains(searchText)
+                || $0.category.localizedCaseInsensitiveContains(searchText)
+                || $0.equipment.localizedCaseInsensitiveContains(searchText)
+        }
+    }
+
     var body: some View {
-        NavigationStack { Form {
-            TextField("Drill name", text: $title)
-            TextField("Instructions", text: $details, axis: .vertical)
-            TextField("Equipment", text: $equipment)
-            Picker("Assign to", selection: $targetID) {
-                Text("Whole team").tag("team")
-                ForEach(store.workspace?.members ?? []) { Text($0.name).tag($0.id.uuidString) }
+        List {
+            ForEach(CoachDrillCategory.allCases) { category in
+                let categoryOptions = filteredOptions.filter { $0.category == category.rawValue }
+                if !categoryOptions.isEmpty {
+                    Section(category.rawValue) {
+                        ForEach(categoryOptions) { option in
+                            Button {
+                                selection = option.id
+                                dismiss()
+                            } label: {
+                                CoachDrillOptionRow(
+                                    name: option.name,
+                                    equipment: option.equipment,
+                                    durationMinutes: option.durationMinutes,
+                                    isSelected: selection == option.id
+                                )
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
             }
-        }.navigationTitle("Assign Drill").toolbar { ToolbarItem(placement: .confirmationAction) { Button("Send") { Task { await store.assign(title: title, details: details, equipment: equipment, memberID: UUID(uuidString: targetID)); dismiss() } }.disabled(title.isEmpty) } } }
+        }
+        .navigationTitle("Select a Drill")
+        .searchable(text: $searchText, prompt: "Search drills or equipment")
+    }
+}
+
+private struct CoachDrillOptionRow: View {
+    let name: String
+    let equipment: String
+    let durationMinutes: Int
+    let isSelected: Bool
+
+    var body: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(name).font(.headline)
+                Text("\(durationMinutes) min • \(equipment)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+            Spacer()
+            if isSelected {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(Color.soccerAccent)
+            }
+        }
+        .contentShape(.rect)
     }
 }
 

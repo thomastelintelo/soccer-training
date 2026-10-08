@@ -289,6 +289,42 @@ enum SessionTemplateCatalog {
             category: "Plus Training",
             drillNames: ["Crossbar Challenge", "Weak Foot Hero", "Perfect Pass Streak", "Juggling Ladder"]
         ),
+        SessionTemplate(
+            name: "Match-Speed Attacker",
+            detail: "Explosive combinations and finishing at game intensity",
+            category: "Plus Training",
+            drillNames: ["Explosive Dribble", "Attacking Third Combination", "Quick Combination Finish", "Pressure Cooker Finishing"]
+        ),
+        SessionTemplate(
+            name: "Elite Midfielder",
+            detail: "Receive, scan, combine, and control the tempo",
+            category: "Plus Training",
+            drillNames: ["First Touch Under Pressure", "Pressure Passing", "Complete Midfielder Circuit", "Game Speed Possession"]
+        ),
+        SessionTemplate(
+            name: "High-Press Competitor",
+            detail: "Win the ball and attack immediately",
+            category: "Plus Training",
+            drillNames: ["Press Trigger Circuit", "High Press Counter Circuit", "Defensive Press to Counter", "Full Pitch Transition Circuit"]
+        ),
+        SessionTemplate(
+            name: "Technical Excellence",
+            detail: "Demand clean execution at full speed",
+            category: "Plus Training",
+            drillNames: ["Technical Mastery Circuit", "Elite Touch and Turn", "One Touch Wonder", "Full Speed Skill Combo"]
+        ),
+        SessionTemplate(
+            name: "Clinical Striker",
+            detail: "Movement, precision, volleys, and pressure finishing",
+            category: "Plus Training",
+            drillNames: ["Striker Movement Circuit", "Precision Cross Finish", "Rapid Fire Volleys", "Target Practice Circuit"]
+        ),
+        SessionTemplate(
+            name: "Complete Elite Test",
+            detail: "A demanding session covering every major skill",
+            category: "Plus Training",
+            drillNames: ["Shoot-Dribble-Pass Combo", "Possession Under Pressure Circuit", "Box to Box Circuit", "Elite Finishing Circuit"]
+        ),
 
         SessionTemplate(
             name: "Cuts and Changes",
