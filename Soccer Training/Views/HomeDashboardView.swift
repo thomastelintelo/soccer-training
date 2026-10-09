@@ -7,12 +7,12 @@ struct HomeDashboardView: View {
     let username: String
     let position: String
     let bestSkill: String
-    let schedule: [ScheduleDay]
+    let topics: [Topic]
     @Binding var totalPoints: Int
     @AppStorage("completedWeeklyTasks") private var completedWeeklyTasks = ""
     @AppStorage("completedWeeklyDays") private var completedWeeklyDays = ""
     @AppStorage("weeklyProgressStart") private var weeklyProgressStart = 0.0
-    @AppStorage("weeklyDrillSubstitutions") private var substitutionText = ""
+    @AppStorage("customWeekPlan") private var weekPlanText = ""
     @AppStorage("totalTrainingMinutes") private var totalTrainingMinutes = 0
     @AppStorage("trainingStreak") private var trainingStreak = 0
     @AppStorage("lastTrainingDate") private var lastTrainingDate = ""
@@ -33,15 +33,7 @@ struct HomeDashboardView: View {
         Set(completedWeeklyTasks.split(separator: "|").map(String.init))
     }
 
-    private var substitutions: [String: String] {
-        Dictionary(
-            uniqueKeysWithValues: substitutionText.split(separator: "|").compactMap { entry in
-                let parts = entry.split(separator: "=", maxSplits: 1)
-                guard parts.count == 2 else { return nil }
-                return (String(parts[0]), String(parts[1]))
-            }
-        )
-    }
+    private var weekPlan: [String: [String]] { WeekPlan.decode(weekPlanText) }
 
     private var todayName: String? {
         switch Calendar.current.component(.weekday, from: Date()) {
@@ -85,10 +77,6 @@ struct HomeDashboardView: View {
         completedTaskIDs.contains(dailyChallengeID(index: index))
     }
 
-    private func displayedDrillName(for item: ScheduleItem, taskID: String) -> String {
-        substitutions[taskID] ?? item.drillName
-    }
-
     private func drillThumbnail(drillName: String, size: CGFloat) -> some View {
         let category = DrillPresentation.category(for: drillName)
         return Image(DrillPresentation.imageName(for: drillName, category: category))
@@ -128,34 +116,6 @@ struct HomeDashboardView: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 14)
         .background(Color.soccerSurface, in: RoundedRectangle(cornerRadius: 14))
-    }
-
-    private func substituteDrill(for item: ScheduleItem, taskID: String) {
-        let replacement: String
-
-        switch item.focus {
-        case "Shooting":
-            replacement = "Practice Shooting"
-        case "Dribbling":
-            replacement = "Inside-Outside Touches"
-        case "Passing":
-            replacement = "Wall Passing"
-        case "Control":
-            replacement = "Juggling"
-        case "Goalkeeping":
-            replacement = "Goalkeeper Footwork"
-        case "Defense":
-            replacement = "Jockeying"
-        default:
-            replacement = "Running"
-        }
-
-        var updatedSubstitutions = substitutions
-        updatedSubstitutions[taskID] = replacement == item.drillName ? "Running" : replacement
-        substitutionText = updatedSubstitutions
-            .map { "\($0.key)=\($0.value)" }
-            .sorted()
-            .joined(separator: "|")
     }
 
     var body: some View {
@@ -349,92 +309,77 @@ struct HomeDashboardView: View {
                     .clipShape(.rect(cornerRadius: 18))
 
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Today")
-                            .font(.title2)
-                            .fontWeight(.bold)
+                        HStack {
+                            Text("My Week")
+                                .font(.title2)
+                                .fontWeight(.bold)
+                            Spacer()
+                            NavigationLink {
+                                WeekPlannerView(topics: topics)
+                            } label: {
+                                Label("Edit", systemImage: "slider.horizontal.3")
+                                    .font(.subheadline)
+                                    .fontWeight(.bold)
+                            }
+                        }
 
-                        Text("Today's training plan. Complete drills to build XP, stats, and training time.")
+                        Text("Your own plan: up to \(WeekPlan.maxDrillsPerDay) drills a day. Today's drills unlock; the rest of the week is a preview.")
                             .font(.subheadline)
                             .foregroundStyle(Color.soccerText.opacity(0.6))
 
-                        ForEach(schedule.filter { $0.day == todayName }) { scheduleDay in
-                            VStack(alignment: .leading, spacing: 10) {
-                                ForEach(scheduleDay.drills) { item in
-                                    let taskID = "\(scheduleDay.day)-\(item.id)"
-                                    let isToday = scheduleDay.day == todayName
-                                    let drillName = displayedDrillName(for: item, taskID: taskID)
+                        if weekPlan.values.allSatisfy(\.isEmpty) {
+                            NavigationLink {
+                                WeekPlannerView(topics: topics)
+                            } label: {
+                                Label("Build your week", systemImage: "plus.circle.fill")
+                                    .font(.headline)
+                                    .frame(maxWidth: .infinity)
+                                    .padding()
+                                    .background(Color.soccerAccent, in: RoundedRectangle(cornerRadius: 14))
+                                    .foregroundStyle(.black)
+                            }
+                        }
 
-                                    HStack(spacing: 8) {
+                        ForEach(WeekPlan.days, id: \.self) { day in
+                            let drills = weekPlan[day] ?? []
+                            let isToday = day == todayName
+                            if !drills.isEmpty {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text(isToday ? "\(day) · Today" : day)
+                                        .font(.headline)
+                                        .fontWeight(.heavy)
+                                        .foregroundStyle(isToday ? Color.soccerAccent : Color.soccerText)
+
+                                    ForEach(drills, id: \.self) { drillName in
+                                        let taskID = WeekPlan.taskID(day: day, drill: drillName)
+                                        let done = completedTaskIDs.contains(taskID)
+
                                         NavigationLink {
                                             DrillTimerView(
                                                 drill: Drill(name: drillName),
                                                 totalPoints: $totalPoints,
                                                 weeklyTaskID: taskID,
-                                                weeklyDay: scheduleDay.day
+                                                weeklyDay: day
                                             )
                                         } label: {
                                             HStack {
-                                                drillThumbnail(drillName: drillName, size: 48)
-
-                                                VStack(alignment: .leading, spacing: 4) {
-                                                    Text(drillName)
-                                                        .font(.headline)
-                                                        .fontWeight(.bold)
-                                                    Text(isToday ? "Focus: \(item.focus)" : "Unlocks on \(scheduleDay.day)")
-                                                        .font(.subheadline)
-                                                }
-
+                                                drillThumbnail(drillName: drillName, size: 40)
+                                                Text(drillName)
+                                                    .font(.headline)
+                                                    .fontWeight(.bold)
                                                 Spacer()
-
-                                                Image(
-                                                    systemName: completedTaskIDs.contains(taskID)
-                                                        ? "checkmark.circle.fill"
-                                                        : isToday ? "chevron.right" : "lock.fill"
-                                                )
-                                                .foregroundStyle(
-                                                    completedTaskIDs.contains(taskID)
-                                                        ? Color.soccerAccent
-                                                        : (isToday ? .white : Color.soccerText)
-                                                )
+                                                Image(systemName: done ? "checkmark.circle.fill" : isToday ? "chevron.right" : "lock.fill")
+                                                    .foregroundStyle(done || isToday ? Color.soccerAccent : Color.soccerText)
                                             }
+                                            .padding(10)
+                                            .background(Color.soccerSurfaceStrong, in: RoundedRectangle(cornerRadius: 12))
+                                            .opacity(isToday ? 1 : 0.6)
                                             .contentShape(.rect)
                                         }
-                                        .disabled(!isToday)
-                                        .opacity(hasAppeared ? 1 : 0)
-                                        .offset(x: hasAppeared ? 0 : -16)
-                                        .animation(
-                                            .spring(response: 0.4, dampingFraction: 0.7).delay(Double(item.id % 10) * 0.04),
-                                            value: hasAppeared
-                                        )
-
-                                        Menu {
-                                            Button {
-                                                substituteDrill(for: item, taskID: taskID)
-                                            } label: {
-                                                Label("I don't have the equipment", systemImage: "shippingbox")
-                                            }
-
-                                            Button {
-                                                substituteDrill(for: item, taskID: taskID)
-                                            } label: {
-                                                Label("I don't have a training partner", systemImage: "person.slash")
-                                            }
-                                        } label: {
-                                            Image(systemName: "ellipsis.circle.fill")
-                                                .font(.title2)
-                                                .padding(8)
-                                        }
-                                        .disabled(!isToday || completedTaskIDs.contains(taskID))
-                                        .accessibilityLabel("More options for \(drillName)")
+                                        .disabled(!isToday || done)
                                     }
-                                    .foregroundStyle(isToday ? .white : Color.soccerText)
-                                    .padding()
-                                    .background(isToday ? Color.soccerAccent : Color.soccerSurfaceStrong)
-                                    .clipShape(.rect(cornerRadius: 14))
-                                    .opacity(isToday ? 1 : 0.8)
                                 }
                             }
-                            .padding(.vertical, 6)
                         }
                     }
                     .padding()
@@ -463,7 +408,6 @@ struct HomeDashboardView: View {
         } else if now - weeklyProgressStart >= week {
             completedWeeklyTasks = ""
             completedWeeklyDays = ""
-            substitutionText = ""
             weeklyProgressStart = now
         }
     }

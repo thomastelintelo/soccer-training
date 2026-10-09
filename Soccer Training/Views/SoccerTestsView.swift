@@ -153,6 +153,13 @@ private struct SoccerTestRow: View {
 private struct SoccerTestDetailView: View {
     let test: SoccerTest
     @Binding var bestsText: String
+    @AppStorage("playerXP") private var playerXP = 0
+    @AppStorage("totalPoints") private var totalPoints = 0
+    @AppStorage("categoryXP") private var categoryXPText = ""
+    @AppStorage("categoryMinutes") private var categoryMinutesText = ""
+    @AppStorage("personalBestCount") private var personalBestCount = 0
+    @AppStorage("soccerTestAttempts") private var testAttempts = 0
+    @AppStorage("weeklyLog") private var weeklyLogText = ""
     @State private var resultText = ""
     @State private var resultMessage = ""
 
@@ -194,14 +201,32 @@ private struct SoccerTestDetailView: View {
         var bests = SoccerTestResults.decode(bestsText)
         let previous = bests[test.id]
         let isBetter = previous.map { test.lowerIsBetter ? result < $0 : result > $0 } ?? true
+
+        var xp = TestProgression.attemptXP
+        testAttempts += 1
         if isBetter {
             bests[test.id] = result
             bestsText = SoccerTestResults.encode(bests)
-            resultMessage = previous == nil ? "First result saved!" : "New personal best!"
+            if previous == nil {
+                xp += TestProgression.firstResultXP
+            } else {
+                xp += TestProgression.personalBestXP
+                personalBestCount += 1
+            }
+            resultMessage = (previous == nil ? "First result saved!" : "New personal best!") + " +\(xp) XP"
             Haptics.success()
         } else {
-            resultMessage = "Result saved, but your personal best is still \(SoccerTestResults.formatted(previous ?? result, unit: test.unit))."
+            resultMessage = "Result saved (+\(xp) XP), but your personal best is still \(SoccerTestResults.formatted(previous ?? result, unit: test.unit))."
         }
+
+        // Test XP feeds the same level, points, and category stats as drills.
+        playerXP += xp
+        weeklyLogText = WeeklyLog.add(to: weeklyLogText, xp: xp)
+        totalPoints += xp / 2
+        var progress = CategoryProgress(xpText: categoryXPText, minutesText: categoryMinutesText)
+        progress.addXP(xp, to: TestProgression.trainingCategory(for: test.category))
+        categoryXPText = progress.xpText
+        resultText = ""
     }
 }
 

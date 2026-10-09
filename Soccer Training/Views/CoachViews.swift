@@ -250,6 +250,7 @@ private struct CoachDrillsTabView: View {
 
     @State private var selectedAge = 0
     @State private var selectedCategory = "All"
+    @State private var maximumDuration = 0
     @State private var searchText = ""
     @State private var showSignOutConfirmation = false
 
@@ -268,8 +269,15 @@ private struct CoachDrillsTabView: View {
             category: categoryFilter
         )
         .filter { drill in
+            maximumDuration == 0 || drill.durationMinutes <= maximumDuration
+        }
+        .filter { drill in
             searchText.isEmpty
                 || drill.name.localizedCaseInsensitiveContains(searchText)
+                || drill.category.rawValue.localizedCaseInsensitiveContains(searchText)
+                || drill.players.localizedCaseInsensitiveContains(searchText)
+                || drill.setup.localizedCaseInsensitiveContains(searchText)
+                || drill.coachingFocus.localizedCaseInsensitiveContains(searchText)
                 || drill.equipment.contains {
                     $0.localizedCaseInsensitiveContains(searchText)
                 }
@@ -288,6 +296,10 @@ private struct CoachDrillsTabView: View {
         Int(primaryAgeGroup.dropFirst())
     }
 
+    private var hasActiveFilters: Bool {
+        selectedAge != 0 || selectedCategory != "All" || maximumDuration != 0 || !searchText.isEmpty
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -295,10 +307,25 @@ private struct CoachDrillsTabView: View {
                     coachHeader
                     filters
 
-                    Text("Showing \(filteredDrills.count) coaching drills")
-                        .font(.headline)
-                        .foregroundStyle(Color.soccerText.opacity(0.7))
-                        .contentTransition(.numericText())
+                    HStack {
+                        Text("Showing \(filteredDrills.count) coaching drills")
+                            .font(.headline)
+                            .foregroundStyle(Color.soccerText.opacity(0.7))
+                            .contentTransition(.numericText())
+
+                        Spacer()
+
+                        if hasActiveFilters {
+                            Button("Clear Filters", systemImage: "xmark.circle.fill") {
+                                selectedAge = 0
+                                selectedCategory = "All"
+                                maximumDuration = 0
+                                searchText = ""
+                            }
+                            .font(.subheadline)
+                            .fontWeight(.bold)
+                        }
+                    }
 
                     if filteredDrills.isEmpty {
                         ContentUnavailableView(
@@ -317,7 +344,7 @@ private struct CoachDrillsTabView: View {
             .background(SoccerBackgroundView())
             .foregroundStyle(Color.soccerText)
             .navigationTitle("Coaching Drills")
-            .searchable(text: $searchText, prompt: "Search drills or equipment")
+            .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search name, skill, setup, or equipment")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Sign Out", systemImage: "rectangle.portrait.and.arrow.right") {
@@ -428,6 +455,27 @@ private struct CoachDrillsTabView: View {
                         ) {
                             selectedCategory = category.rawValue
                         }
+                    }
+                }
+            }
+            .scrollIndicators(.hidden)
+
+            Text("Maximum time")
+                .font(.headline)
+
+            ScrollView(.horizontal) {
+                HStack(spacing: 8) {
+                    filterButton(title: "Any", isSelected: maximumDuration == 0) {
+                        maximumDuration = 0
+                    }
+                    filterButton(title: "10 min", isSelected: maximumDuration == 10, icon: "clock") {
+                        maximumDuration = 10
+                    }
+                    filterButton(title: "15 min", isSelected: maximumDuration == 15, icon: "clock") {
+                        maximumDuration = 15
+                    }
+                    filterButton(title: "20 min", isSelected: maximumDuration == 20, icon: "clock") {
+                        maximumDuration = 20
                     }
                 }
             }
@@ -735,6 +783,23 @@ private struct CoachDrillDetailView: View {
                     icon: "lightbulb.fill",
                     text: drill.coachingFocus
                 )
+
+                NavigationLink {
+                    AssignedDrillTimerView(
+                        title: drill.name,
+                        details: "Setup: \(drill.setup)\n\nCoaching focus: \(drill.coachingFocus)",
+                        minutes: drill.durationMinutes
+                    )
+                } label: {
+                    Label("Start \(drill.durationMinutes)-Minute Timer", systemImage: "timer")
+                        .font(.title3)
+                        .fontWeight(.heavy)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.soccerAccent, in: RoundedRectangle(cornerRadius: 16))
+                        .foregroundStyle(.white)
+                }
+                .buttonStyle(.plain)
             }
             .padding()
         }

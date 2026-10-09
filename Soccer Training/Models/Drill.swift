@@ -21,18 +21,3 @@ struct Topic: Identifiable {
 
     var id: String { name }
 }
-
-struct ScheduleItem: Identifiable {
-    let id: Int
-    let focus: String
-    let drillName: String
-}
-
-struct ScheduleDay: Identifiable {
-    let day: String
-    let drills: [ScheduleItem]
-
-    var id: String {
-        day
-    }
-}

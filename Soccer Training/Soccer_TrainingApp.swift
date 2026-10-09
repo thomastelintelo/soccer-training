@@ -86,13 +86,27 @@ struct LaunchContainerView: View {
     @AppStorage("accountRole") private var accountRole = ""
     @State private var hasStarted = false
     @State private var hasSeenBenefits = false
+    @State private var hasChosenRoleForThisLaunch = false
 
     var body: some View {
         ZStack {
             // Built only after the splash is dismissed, so the very first frame
             // doesn't have to construct the whole signed-in tab hierarchy first.
             if hasStarted {
-                if hasCompletedOnboarding {
+                if !hasChosenRoleForThisLaunch {
+                    RoleSelectionView { role in
+                        let selectedRole = role.rawValue
+                        if !accountRole.isEmpty && accountRole != selectedRole {
+                            hasCompletedOnboarding = false
+                            hasSeenBenefits = false
+                        }
+                        accountRole = selectedRole
+                        withAnimation(.easeOut(duration: 0.25)) {
+                            hasChosenRoleForThisLaunch = true
+                        }
+                    }
+                    .transition(.opacity)
+                } else if hasCompletedOnboarding {
                     if accountRole == AppRole.coach.rawValue {
                         CoachContentView()
                     } else {
@@ -102,19 +116,19 @@ struct LaunchContainerView: View {
                     if accountRole == AppRole.player.rawValue {
                         PlayerSignInView(
                             isSignedIn: $hasCompletedOnboarding,
-                            onChooseDifferentRole: { accountRole = "" }
-                        )
-                    } else if accountRole == AppRole.coach.rawValue {
-                        CoachSignInView(
-                            isSignedIn: $hasCompletedOnboarding,
-                            onChooseDifferentRole: { accountRole = "" }
+                            onChooseDifferentRole: {
+                                accountRole = ""
+                                hasChosenRoleForThisLaunch = false
+                            }
                         )
                     } else {
-                        RoleSelectionView { role in
-                            withAnimation(.easeOut(duration: 0.25)) {
-                                accountRole = role.rawValue
+                        CoachSignInView(
+                            isSignedIn: $hasCompletedOnboarding,
+                            onChooseDifferentRole: {
+                                accountRole = ""
+                                hasChosenRoleForThisLaunch = false
                             }
-                        }
+                        )
                     }
                 } else {
                     AppBenefitsView {

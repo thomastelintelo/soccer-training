@@ -21,6 +21,9 @@ struct DrillTimerView: View {
     @AppStorage("playerXP") private var playerXP = 0
     @AppStorage("categoryXP") private var categoryXPText = ""
     @AppStorage("categoryMinutes") private var categoryMinutesText = ""
+    @AppStorage("drillBests") private var drillBestsText = ""
+    @AppStorage("weeklyLog") private var weeklyLogText = ""
+    @AppStorage("personalBestCount") private var personalBestCount = 0
     @AppStorage("totalGoals") private var totalGoals = 0
     @AppStorage("totalShots") private var totalShots = 0
     @AppStorage("totalPasses") private var totalPasses = 0
@@ -1591,8 +1594,23 @@ struct DrillTimerView: View {
             break
         }
 
-        updateTrainingStreak()
+        weeklyLogText = WeeklyLog.add(
+            to: weeklyLogText,
+            drills: 1,
+            minutes: minutesTrained,
+            xp: xpAward,
+            attempts: recordedAttempts,
+            successes: min(recordedSuccesses, recordedAttempts)
+        )
 
+        var drillBests = DrillBests.decode(drillBestsText)
+        if recordedSuccesses > (drillBests[drill.name] ?? 0) {
+            if drillBests[drill.name] != nil { personalBestCount += 1 }
+            drillBests[drill.name] = recordedSuccesses
+            drillBestsText = DrillBests.encode(drillBests)
+        }
+
+        updateTrainingStreak()
     }
 
     private func updateTrainingStreak() {

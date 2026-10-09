@@ -24,6 +24,11 @@ struct ProfileView: View {
     @AppStorage("totalSessions") private var totalSessions = 0
     @AppStorage("trainingStreak") private var trainingStreak = 0
     @AppStorage("seenAchievements") private var seenAchievementsText = ""
+    @AppStorage("soccerTestBests") private var testBestsText = ""
+    @AppStorage("drillBests") private var drillBestsText = ""
+    @AppStorage("personalBestCount") private var personalBestCount = 0
+    @AppStorage("soccerTestAttempts") private var testAttempts = 0
+    @AppStorage("weeklyLog") private var weeklyLogText = ""
     @State private var isShowingSignOutConfirmation = false
     @State private var isShowingCamera = false
     @State private var isShowingCameraUnavailable = false
@@ -72,6 +77,12 @@ struct ProfileView: View {
             Achievement(title: "High Roller", detail: "Hold 10,000 points", systemImage: "star.circle.fill", isUnlocked: totalPoints >= 10_000),
             Achievement(title: "Level Five", detail: "Reach level 5", systemImage: "trophy.fill", isUnlocked: level >= 5),
             Achievement(title: "Futbol Elite", detail: "Reach level 15", systemImage: "crown.fill", isUnlocked: level >= 15),
+            Achievement(title: "Test Taker", detail: "Complete your first Soccer Test", systemImage: "checkmark.seal.fill", isUnlocked: testBests.count >= 1),
+            Achievement(title: "Test Veteran", detail: "Complete 10 different Soccer Tests", systemImage: "checkmark.seal.fill", isUnlocked: testBests.count >= 10),
+            Achievement(title: "Target Crusher", detail: "Beat the target on 5 Soccer Tests", systemImage: "target", isUnlocked: targetsBeaten >= 5),
+            Achievement(title: "Record Breaker", detail: "Set 5 new personal bests", systemImage: "chart.line.uptrend.xyaxis", isUnlocked: personalBestCount >= 5),
+            Achievement(title: "Silver Rank", detail: "Unlock the Silver rank", systemImage: "shield.lefthalf.filled", isUnlocked: level >= 6),
+            Achievement(title: "Gold Rank", detail: "Unlock the Gold rank", systemImage: "medal.fill", isUnlocked: level >= 10),
             Achievement(title: "Game Intelligence", detail: "Earn 200 Soccer IQ XP", systemImage: "brain.head.profile", isUnlocked: categoryProgress.xp(for: "Soccer IQ") >= 200),
         ]
     }
@@ -80,13 +91,20 @@ struct ProfileView: View {
         CategoryProgress(xpText: categoryXPText, minutesText: categoryMinutesText)
     }
 
-    private func skillRating(for xp: Int) -> Int {
-        let trainingTimeBonus = totalTrainingMinutes / 30
-        return min(99, 40 + xp / 50 + trainingTimeBonus)
+    private var testBests: [String: Double] { SoccerTestResults.decode(testBestsText) }
+
+    private var targetsBeaten: Int {
+        SoccerTestCatalog.all.filter { test in
+            testBests[test.id].map { TestProgression.score(test, best: $0) >= 1 } ?? false
+        }.count
     }
 
-    private func skillRating(forCategories categories: [String]) -> Int {
-        skillRating(for: categories.reduce(0) { $0 + categoryProgress.xp(for: $1) })
+    /// Rating from training XP and time, plus a bonus from completed test results.
+    private func skillRating(forCategories categories: [String], testCategories: [String] = []) -> Int {
+        let xp = categories.reduce(0) { $0 + categoryProgress.xp(for: $1) }
+        let trainingTimeBonus = totalTrainingMinutes / 30
+        let testBonus = TestProgression.ratingBonus(forTestCategories: testCategories, bests: testBests)
+        return min(99, 40 + xp / 50 + trainingTimeBonus + testBonus)
     }
 
     /// All categories shown in the "Training Time by Category" rings, each with
@@ -113,12 +131,12 @@ struct ProfileView: View {
     /// newer ones) into the 6 stats a player card always shows.
     private var cardStats: [PlayerCardStat] {
         [
-            PlayerCardStat(label: "PAC", value: skillRating(forCategories: ["Speed & Finishing", "Workout"])),
-            PlayerCardStat(label: "SHO", value: skillRating(forCategories: ["Shooting", "Speed & Finishing"])),
-            PlayerCardStat(label: "PAS", value: skillRating(forCategories: ["Passing", "Soccer IQ"])),
-            PlayerCardStat(label: "DRI", value: skillRating(forCategories: ["Dribbling", "Technique", "First Touch"])),
-            PlayerCardStat(label: "DEF", value: skillRating(forCategories: ["Defense", "Goalkeeping"])),
-            PlayerCardStat(label: "PHY", value: skillRating(forCategories: ["Workout", "Plus Training"])),
+            PlayerCardStat(label: "PAC", value: skillRating(forCategories: ["Speed & Finishing", "Workout"], testCategories: ["Fitness"])),
+            PlayerCardStat(label: "SHO", value: skillRating(forCategories: ["Shooting", "Speed & Finishing"], testCategories: ["Shooting"])),
+            PlayerCardStat(label: "PAS", value: skillRating(forCategories: ["Passing", "Soccer IQ"], testCategories: ["Passing"])),
+            PlayerCardStat(label: "DRI", value: skillRating(forCategories: ["Dribbling", "Technique", "First Touch"], testCategories: ["Dribbling", "Control"])),
+            PlayerCardStat(label: "DEF", value: skillRating(forCategories: ["Defense", "Goalkeeping"], testCategories: ["Goalkeeping"])),
+            PlayerCardStat(label: "PHY", value: skillRating(forCategories: ["Workout", "Plus Training"], testCategories: ["Fitness"])),
         ]
     }
 
@@ -173,6 +191,7 @@ struct ProfileView: View {
                     stats: cardStats
                 )
 
+                ProgressDashboardLink()
                 SoccerTestProfileSummary()
                 PlayerJoinTeamProfileCard()
 
@@ -205,6 +224,10 @@ struct ProfileView: View {
                 .padding()
                 .background(Color.soccerSurface)
                 .clipShape(.rect(cornerRadius: 16))
+
+                rankCard
+
+                personalBestsCard
 
                 HStack(spacing: 12) {
                     profileCard(title: "Position", value: position)
@@ -488,6 +511,11 @@ struct ProfileView: View {
         lastTrainingDate = ""
         completedWeeklyTasks = ""
         completedWeeklyDays = ""
+        testBestsText = ""
+        drillBestsText = ""
+        personalBestCount = 0
+        testAttempts = 0
+        weeklyLogText = ""
         devResetMessage = "Level and training progress reset."
         Haptics.soft()
     }
@@ -504,6 +532,103 @@ struct ProfileView: View {
         seenAchievementsText = unlockedIDs.union(seenIDs).sorted().joined(separator: "|")
     }
 
+    private var rankCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Label("Rank: \(playerProgress.rank.name)", systemImage: playerProgress.rank.systemImage)
+                    .font(.title3)
+                    .fontWeight(.heavy)
+                    .foregroundStyle(Color.soccerGold)
+                Spacer()
+                if let next = playerProgress.nextRank {
+                    Text("\(next.name) at Lv \(next.minLevel)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            ProgressView(value: playerProgress.progressToNextRank)
+                .tint(Color.soccerGold)
+
+            HStack(spacing: 8) {
+                ForEach(PlayerRank.all) { rank in
+                    let unlocked = level >= rank.minLevel
+                    VStack(spacing: 4) {
+                        Image(systemName: unlocked ? rank.systemImage : "lock.fill")
+                            .foregroundStyle(unlocked ? Color.soccerGold : Color.gray)
+                        Text(rank.name)
+                            .font(.system(size: 9, weight: .semibold))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                            .foregroundStyle(unlocked ? Color.soccerText : Color.gray)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+            }
+        }
+        .padding()
+        .background(Color.soccerSurface)
+        .clipShape(.rect(cornerRadius: 16))
+    }
+
+    private var personalBestsCard: some View {
+        let tests = SoccerTestCatalog.all.filter { testBests[$0.id] != nil }
+        let drills = DrillBests.decode(drillBestsText).filter { $0.value > 0 }.sorted { $0.value > $1.value }.prefix(5)
+
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Personal Bests")
+                    .font(.title2)
+                    .fontWeight(.heavy)
+                Spacer()
+                Text("\(personalBestCount) broken")
+                    .font(.caption)
+                    .fontWeight(.bold)
+                    .foregroundStyle(Color.soccerAccent)
+            }
+
+            if tests.isEmpty && drills.isEmpty {
+                Text("Complete a Soccer Test or a drill to set your first personal best.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+
+            ForEach(tests.prefix(8)) { test in
+                if let best = testBests[test.id] {
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text(test.name).fontWeight(.bold)
+                            Spacer()
+                            Text(SoccerTestResults.formatted(best, unit: test.unit))
+                                .foregroundStyle(Color.soccerAccent)
+                                .fontWeight(.bold)
+                        }
+                        .font(.subheadline)
+                        ProgressView(value: TestProgression.score(test, best: best))
+                            .tint(Color.soccerAccent)
+                        Text("Target: \(SoccerTestResults.formatted(test.target, unit: test.unit))")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            ForEach(Array(drills), id: \.key) { name, best in
+                HStack {
+                    Text(name).fontWeight(.bold)
+                    Spacer()
+                    Text("\(best) best")
+                        .foregroundStyle(Color.soccerAccent)
+                        .fontWeight(.bold)
+                }
+                .font(.subheadline)
+            }
+        }
+        .padding()
+        .background(Color.soccerSurface)
+        .clipShape(.rect(cornerRadius: 16))
+    }
+
     private func skillCard(title: String, rating: Int) -> some View {
         VStack(spacing: 6) {
             Text(rating.formatted())
@@ -513,8 +638,12 @@ struct ProfileView: View {
             Text(title)
                 .font(.subheadline)
                 .fontWeight(.bold)
+            ProgressView(value: Double(rating), total: 99)
+                .tint(Color.soccerAccent)
+                .padding(.horizontal, 14)
         }
         .frame(maxWidth: .infinity, minHeight: 82)
+        .padding(.vertical, 6)
         .background(Color.soccerSurfaceStrong, in: RoundedRectangle(cornerRadius: 14))
     }
 
