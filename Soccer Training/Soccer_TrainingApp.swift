@@ -738,7 +738,6 @@ struct Soccer_TrainingApp: App {
     @State private var plusStore = PlusPurchaseStore()
 
     init() {
-        DrillTimerLiveActivity.shared.configure()
         Self.migrateCategoryProgressIfNeeded()
     }
 

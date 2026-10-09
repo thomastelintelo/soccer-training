@@ -40,7 +40,7 @@ struct DrillTimerAttributes: ActivityAttributes {
 }
 
 private enum DrillTimerPalette {
-    static let text = Color(red: 0.08, green: 0.10, blue: 0.14)
+    static let text = Color(red: 0.96, green: 0.94, blue: 0.88)
 }
 
 private extension ActivityViewContext<DrillTimerAttributes> {
@@ -86,6 +86,7 @@ struct DrillTimerLiveActivityWidget: Widget {
                 DynamicIslandExpandedRegion(.center) {
                     Text(context.attributes.drillName)
                         .font(.headline)
+                        .foregroundStyle(DrillTimerPalette.text)
                         .lineLimit(1)
                 }
 
@@ -98,9 +99,9 @@ struct DrillTimerLiveActivityWidget: Widget {
 
                 DynamicIslandExpandedRegion(.bottom) {
                     if context.isTimeUp {
-                        Text("Time's up! Open the app to log your drill.")
+                        Text("Drill complete! Open the app to log your drill.")
                             .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(DrillTimerPalette.text.opacity(0.7))
                     } else {
                         ProgressView(timerInterval: context.timerRange, countsDown: true) {
                             EmptyView()
@@ -169,7 +170,7 @@ private struct DrillTimerLockScreenView: View {
                     Text(context.attributes.drillName)
                         .font(.headline)
                         .lineLimit(1)
-                    Text(context.isTimeUp ? "Time's up! Open the app to log your drill." : "\(context.attributes.category) drill")
+                    Text(context.isTimeUp ? "Drill complete! Open the app to log your drill." : "\(context.attributes.category) drill")
                         .font(.subheadline)
                         .foregroundStyle(DrillTimerPalette.text.opacity(0.7))
                         .lineLimit(1)
@@ -205,9 +206,9 @@ extension DrillTimerAttributes {
             startDate: .now,
             endDate: .now.addingTimeInterval(600),
             theme: DrillTimerTheme(
-                accent: DrillTimerColorComponents(red: 0.07, green: 0.42, blue: 0.93, opacity: 1),
-                background: DrillTimerColorComponents(red: 1.0, green: 1.0, blue: 1.0, opacity: 1),
-                surface: DrillTimerColorComponents(red: 0.95, green: 0.96, blue: 0.98, opacity: 1)
+                accent: DrillTimerColorComponents(red: 0.93, green: 0.72, blue: 0.16, opacity: 1),
+                background: DrillTimerColorComponents(red: 0.04, green: 0.04, blue: 0.045, opacity: 1),
+                surface: DrillTimerColorComponents(red: 0.10, green: 0.10, blue: 0.11, opacity: 1)
             )
         )
     }

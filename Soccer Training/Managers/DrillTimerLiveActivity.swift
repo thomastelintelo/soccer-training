@@ -2,11 +2,18 @@
 //  DrillTimerLiveActivity.swift
 //  Soccer Training
 //
-//  Starts and ends the drill timer Live Activity, and schedules the gentle
-//  chime notification that plays when the timer finishes (even on the lock screen).
+//  Starts and ends the drill timer Live Activity. When the timer runs out it
+//  plays the gentle chime and flips the Live Activity to its completed state,
+//  without posting a separate notification.
+//
+//  The app is normally suspended while the screen is locked, which would stop
+//  both the chime and the Live Activity update. To keep them on time, a silent
+//  audio loop (the "audio" background mode) keeps the app running until the
+//  timer finishes.
 //
 
 import ActivityKit
+import AVFoundation
 import Foundation
 import SwiftUI
 import UIKit
@@ -15,27 +22,26 @@ import UserNotifications
 final class DrillTimerLiveActivity: NSObject {
     static let shared = DrillTimerLiveActivity()
 
-    private static let alarmNotificationID = "drill-timer-finished"
-    private static let alarmSoundName = "gentle_chime.caf"
+    private static let legacyAlarmNotificationID = "drill-timer-finished"
 
     private var activity: Activity<DrillTimerAttributes>?
     private var startTask: Task<Void, Never>?
-
-    /// Call once at launch so the chime also plays if the timer finishes while the app is open.
-    /// Also requests notification permission up front, so it's already granted by the time a
-    /// drill finishes with the screen locked instead of racing a just-in-time prompt.
-    func configure() {
-        UNUserNotificationCenter.current().delegate = self
-        Task {
-            _ = try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound])
-        }
-    }
+    private var finishTask: Task<Void, Never>?
+    private var keepAlivePlayer: AVAudioPlayer?
+    private var chimePlayer: AVAudioPlayer?
+    private var isRunning = false
 
     func start(drillName: String, category: String, duration: Int) {
         let startDate = Date()
         let endDate = startDate.addingTimeInterval(TimeInterval(duration))
 
         startTask?.cancel()
+        finishTask?.cancel()
+        isRunning = true
+        clearLegacyNotification()
+        beginKeepAlive()
+        scheduleFinish(at: endDate)
+
         startTask = Task {
             await endAllActivities()
             guard !Task.isCancelled else { return }
@@ -48,32 +54,109 @@ final class DrillTimerLiveActivity: NSObject {
                     theme: Self.currentTheme
                 )
             )
-            await scheduleAlarm(drillName: drillName, at: endDate)
         }
     }
 
-    /// The user stopped the drill early: remove the Live Activity and cancel the alarm.
+    /// The user stopped the drill early: remove the Live Activity and stay silent.
     func cancel() {
+        isRunning = false
         startTask?.cancel()
-        UNUserNotificationCenter.current()
-            .removePendingNotificationRequests(withIdentifiers: [Self.alarmNotificationID])
+        finishTask?.cancel()
+        stopKeepAlive()
+        clearLegacyNotification()
 
         Task {
             await endAllActivities()
         }
     }
 
-    /// The timer reached zero: show "Time's up" briefly, then dismiss.
+    /// The timer reached zero: chime and show the completed state.
     func finish() {
+        guard isRunning else { return }
+        isRunning = false
+        finishTask?.cancel()
+        playChime()
+
         guard let activity else { return }
         self.activity = nil
 
         Task {
             await activity.end(
                 ActivityContent(state: .init(isFinished: true), staleDate: nil),
-                dismissalPolicy: .after(.now.addingTimeInterval(60))
+                dismissalPolicy: .after(.now.addingTimeInterval(5 * 60))
             )
         }
+    }
+
+    // MARK: - Audio
+
+    private func scheduleFinish(at endDate: Date) {
+        finishTask = Task {
+            do {
+                try await Task.sleep(for: .seconds(max(0, endDate.timeIntervalSinceNow)))
+            } catch {
+                return
+            }
+            finish()
+        }
+    }
+
+    private func beginKeepAlive() {
+        let session = AVAudioSession.sharedInstance()
+        try? session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+        try? session.setActive(true)
+
+        guard keepAlivePlayer == nil, let player = try? AVAudioPlayer(data: Self.silentWAV) else { return }
+        player.numberOfLoops = -1
+        player.prepareToPlay()
+        player.play()
+        keepAlivePlayer = player
+    }
+
+    private func stopKeepAlive() {
+        keepAlivePlayer?.stop()
+        keepAlivePlayer = nil
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+    }
+
+    private func playChime() {
+        guard
+            let url = Bundle.main.url(forResource: "gentle_chime", withExtension: "caf"),
+            let player = try? AVAudioPlayer(contentsOf: url)
+        else {
+            stopKeepAlive()
+            return
+        }
+        chimePlayer = player
+        player.play()
+
+        // Keep the audio session alive until the chime has finished.
+        Task {
+            try? await Task.sleep(for: .seconds(player.duration + 0.5))
+            chimePlayer = nil
+            if !isRunning { stopKeepAlive() }
+        }
+    }
+
+    /// One second of silence as a WAV file, looped to keep the app running.
+    private static let silentWAV: Data = {
+        let sampleRate = 8000
+        let dataSize = sampleRate * 2
+        var data = Data()
+        func append32(_ value: Int) { withUnsafeBytes(of: UInt32(value).littleEndian) { data.append(contentsOf: $0) } }
+        func append16(_ value: Int) { withUnsafeBytes(of: UInt16(value).littleEndian) { data.append(contentsOf: $0) } }
+        data.append(contentsOf: Array("RIFF".utf8)); append32(36 + dataSize)
+        data.append(contentsOf: Array("WAVEfmt ".utf8)); append32(16)
+        append16(1); append16(1); append32(sampleRate); append32(sampleRate * 2); append16(2); append16(16)
+        data.append(contentsOf: Array("data".utf8)); append32(dataSize)
+        data.append(Data(count: dataSize))
+        return data
+    }()
+
+    /// Older builds scheduled a "Time's up!" notification; make sure none is left pending.
+    private func clearLegacyNotification() {
+        UNUserNotificationCenter.current()
+            .removePendingNotificationRequests(withIdentifiers: [Self.legacyAlarmNotificationID])
     }
 
     /// The app's current background theme colors, captured as plain RGBA values
@@ -108,45 +191,6 @@ final class DrillTimerLiveActivity: NSObject {
         for activity in Activity<DrillTimerAttributes>.activities {
             await activity.end(nil, dismissalPolicy: .immediate)
         }
-    }
-
-    private func scheduleAlarm(drillName: String, at endDate: Date) async {
-        let center = UNUserNotificationCenter.current()
-        center.removePendingNotificationRequests(withIdentifiers: [Self.alarmNotificationID])
-
-        guard (try? await center.requestAuthorization(options: [.alert, .sound])) == true else {
-            return
-        }
-        guard !Task.isCancelled else { return }
-
-        let content = UNMutableNotificationContent()
-        content.title = "Time's up!"
-        content.body = "\(drillName) is complete. Open the app to log your drill."
-        content.sound = UNNotificationSound(named: UNNotificationSoundName(Self.alarmSoundName))
-        // Time-sensitive so it still breaks through on the lock screen or in a Focus mode.
-        content.interruptionLevel = .timeSensitive
-
-        let interval = max(1, endDate.timeIntervalSinceNow)
-        let request = UNNotificationRequest(
-            identifier: Self.alarmNotificationID,
-            content: content,
-            trigger: UNTimeIntervalNotificationTrigger(timeInterval: interval, repeats: false)
-        )
-
-        do {
-            try await center.add(request)
-        } catch {
-            print("Failed to schedule drill timer alarm: \(error)")
-        }
-    }
-}
-
-extension DrillTimerLiveActivity: UNUserNotificationCenterDelegate {
-    nonisolated func userNotificationCenter(
-        _ center: UNUserNotificationCenter,
-        willPresent notification: UNNotification
-    ) async -> UNNotificationPresentationOptions {
-        [.banner, .list, .sound]
     }
 }
 
