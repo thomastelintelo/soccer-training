@@ -783,7 +783,7 @@ struct Soccer_TrainingApp: App {
                 .environment(plusStore)
                 .task { await plusStore.prepare() }
                 .task { await plusStore.observeTransactionUpdates() }
-                .preferredColorScheme(.light)
+                .preferredColorScheme(.dark)
         }
     }
 }

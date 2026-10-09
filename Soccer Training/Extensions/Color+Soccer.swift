@@ -4,12 +4,12 @@
 import SwiftUI
 
 extension Color {
-    static let soccerBackground = Color(red: 0.96, green: 0.98, blue: 1.00)
-    static let soccerSurface = Color(red: 0.95, green: 0.96, blue: 0.98)
-    static let soccerSurfaceStrong = Color(red: 0.90, green: 0.92, blue: 0.95)
-    static let soccerText = Color(red: 0.08, green: 0.10, blue: 0.14)
-    static let soccerAccent = Color(red: 0.07, green: 0.42, blue: 0.93)
-    static let soccerAccentLight = Color(red: 0.38, green: 0.64, blue: 0.98)
+    static let soccerBackground = Color(red: 0.04, green: 0.04, blue: 0.045)
+    static let soccerSurface = Color(red: 0.10, green: 0.10, blue: 0.11)
+    static let soccerSurfaceStrong = Color(red: 0.17, green: 0.16, blue: 0.14)
+    static let soccerText = Color(red: 0.96, green: 0.94, blue: 0.88)
+    static let soccerAccent = Color(red: 0.93, green: 0.72, blue: 0.16)
+    static let soccerAccentLight = Color(red: 1.00, green: 0.84, blue: 0.40)
     static let soccerGold = Color(red: 1.00, green: 0.76, blue: 0.20)
 }
 
@@ -18,16 +18,16 @@ struct SoccerBackgroundView: View {
         ZStack {
             LinearGradient(
                 colors: [
-                    Color(red: 0.95, green: 0.98, blue: 1.00),
-                    Color(red: 0.93, green: 0.98, blue: 0.96),
-                    Color(red: 0.97, green: 0.98, blue: 1.00),
+                    Color(red: 0.05, green: 0.05, blue: 0.055),
+                    Color(red: 0.03, green: 0.03, blue: 0.03),
+                    Color(red: 0.07, green: 0.06, blue: 0.04),
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
 
             RadialGradient(
-                colors: [Color.soccerAccent.opacity(0.10), .clear],
+                colors: [Color.soccerAccent.opacity(0.16), .clear],
                 center: .topTrailing,
                 startRadius: 0,
                 endRadius: 320
@@ -57,7 +57,7 @@ struct SoccerBackgroundView: View {
                         )
                     )
                 }
-                .stroke(Color.soccerAccent.opacity(0.055), lineWidth: 2)
+                .stroke(Color.soccerAccent.opacity(0.08), lineWidth: 2)
             }
         }
         .ignoresSafeArea()
