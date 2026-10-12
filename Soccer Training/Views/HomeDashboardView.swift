@@ -4,6 +4,7 @@
 import SwiftUI
 
 struct HomeDashboardView: View {
+    @Environment(PlusPurchaseStore.self) private var plusStore
     let username: String
     let position: String
     let bestSkill: String
@@ -17,6 +18,7 @@ struct HomeDashboardView: View {
     @AppStorage("trainingStreak") private var trainingStreak = 0
     @AppStorage("lastTrainingDate") private var lastTrainingDate = ""
     @State private var hasAppeared = false
+    @State private var showingPlus = false
 
     private var trainedToday: Bool {
         let formatter = DateFormatter()
@@ -34,6 +36,10 @@ struct HomeDashboardView: View {
     }
 
     private var weekPlan: [String: [String]] { WeekPlan.decode(weekPlanText) }
+
+    private func isLockedPlusDrill(_ name: String) -> Bool {
+        DrillPresentation.category(for: name) == "Plus Training" && !plusStore.isUnlocked
+    }
 
     private var todayName: String? {
         switch Calendar.current.component(.weekday, from: Date()) {
@@ -354,29 +360,35 @@ struct HomeDashboardView: View {
                                         let taskID = WeekPlan.taskID(day: day, drill: drillName)
                                         let done = completedTaskIDs.contains(taskID)
 
-                                        NavigationLink {
-                                            DrillTimerView(
-                                                drill: Drill(name: drillName),
-                                                totalPoints: $totalPoints,
-                                                weeklyTaskID: taskID,
-                                                weeklyDay: day
-                                            )
-                                        } label: {
-                                            HStack {
-                                                drillThumbnail(drillName: drillName, size: 40)
-                                                Text(drillName)
-                                                    .font(.headline)
-                                                    .fontWeight(.bold)
-                                                Spacer()
-                                                Image(systemName: done ? "checkmark.circle.fill" : isToday ? "chevron.right" : "lock.fill")
-                                                    .foregroundStyle(done || isToday ? Color.soccerAccent : Color.soccerText)
+                                        if isLockedPlusDrill(drillName) {
+                                            Button {
+                                                showingPlus = true
+                                            } label: {
+                                                weeklyDrillRow(
+                                                    drillName: drillName,
+                                                    systemImage: "lock.fill",
+                                                    isToday: isToday
+                                                )
                                             }
-                                            .padding(10)
-                                            .background(Color.soccerSurfaceStrong, in: RoundedRectangle(cornerRadius: 12))
-                                            .opacity(isToday ? 1 : 0.6)
-                                            .contentShape(.rect)
+                                            .buttonStyle(.plain)
+                                            .disabled(!isToday)
+                                        } else {
+                                            NavigationLink {
+                                                DrillTimerView(
+                                                    drill: Drill(name: drillName),
+                                                    totalPoints: $totalPoints,
+                                                    weeklyTaskID: taskID,
+                                                    weeklyDay: day
+                                                )
+                                            } label: {
+                                                weeklyDrillRow(
+                                                    drillName: drillName,
+                                                    systemImage: done ? "checkmark.circle.fill" : isToday ? "chevron.right" : "lock.fill",
+                                                    isToday: isToday
+                                                )
+                                            }
+                                            .disabled(!isToday || done)
                                         }
-                                        .disabled(!isToday || done)
                                     }
                                 }
                             }
@@ -393,10 +405,29 @@ struct HomeDashboardView: View {
         .foregroundStyle(Color.soccerText)
         .navigationTitle("Home")
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showingPlus) {
+            FutbolElitePlusView()
+        }
         .onAppear {
             resetWeeklyProgressIfNeeded()
             hasAppeared = true
         }
+    }
+
+    private func weeklyDrillRow(drillName: String, systemImage: String, isToday: Bool) -> some View {
+        HStack {
+            drillThumbnail(drillName: drillName, size: 40)
+            Text(drillName)
+                .font(.headline)
+                .fontWeight(.bold)
+            Spacer()
+            Image(systemName: systemImage)
+                .foregroundStyle(Color.soccerAccent)
+        }
+        .padding(10)
+        .background(Color.soccerSurfaceStrong, in: RoundedRectangle(cornerRadius: 12))
+        .opacity(isToday ? 1 : 0.6)
+        .contentShape(.rect)
     }
 
     private func resetWeeklyProgressIfNeeded() {

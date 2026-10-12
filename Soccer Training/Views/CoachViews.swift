@@ -621,26 +621,6 @@ private struct CoachProfileView: View {
                         )
                     }
 
-                    NavigationLink {
-                        CoachPlusView()
-                    } label: {
-                        HStack {
-                            Label("Coach Plus", systemImage: "crown.fill")
-                                .font(.headline)
-                            Spacer()
-                            Text("Advanced plans")
-                                .font(.subheadline)
-                            Image(systemName: "chevron.right")
-                        }
-                        .padding()
-                        .foregroundStyle(.white)
-                        .background(
-                            LinearGradient(colors: [Color.soccerAccent, .purple], startPoint: .leading, endPoint: .trailing),
-                            in: RoundedRectangle(cornerRadius: 16)
-                        )
-                    }
-                    .buttonStyle(.plain)
-
                     Button(role: .destructive) {
                         showSignOutConfirmation = true
                     } label: {

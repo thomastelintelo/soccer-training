@@ -28,11 +28,13 @@ enum WeekPlan {
 }
 
 struct WeekPlannerView: View {
+    @Environment(PlusPurchaseStore.self) private var plusStore
     let topics: [Topic]
     @AppStorage("customWeekPlan") private var planText = ""
     @AppStorage("customWeekFocus") private var focusText = ""
     @State private var selectedDay = "Monday"
     @State private var showingAutoFillPrompt = false
+    @State private var showingPlus = false
     @State private var autoFillCount = "5"
 
     private var plan: [String: [String]] { WeekPlan.decode(planText) }
@@ -42,6 +44,14 @@ struct WeekPlannerView: View {
     }
 
     private var dayDrills: [String] { plan[selectedDay] ?? [] }
+
+    private var plusDrillNames: Set<String> {
+        Set(topics.first(where: { $0.name == "Plus Training" })?.drills.map(\.name) ?? [])
+    }
+
+    private func isLockedPlusDrill(_ name: String) -> Bool {
+        plusDrillNames.contains(name) && !plusStore.isUnlocked
+    }
 
     private var availableDrills: [Drill] {
         topics
@@ -55,12 +65,20 @@ struct WeekPlannerView: View {
     }
 
     private func toggleFocus(_ name: String) {
+        guard name != "Plus Training" || plusStore.isUnlocked else {
+            showingPlus = true
+            return
+        }
         var areas = focusAreas
         if areas.contains(name) { areas.remove(name) } else { areas.insert(name) }
         focusText = areas.sorted().joined(separator: "|")
     }
 
     private func add(_ drill: String) {
+        guard !isLockedPlusDrill(drill) else {
+            showingPlus = true
+            return
+        }
         var updated = plan
         var list = updated[selectedDay] ?? []
         guard list.count < WeekPlan.maxDrillsPerDay, !list.contains(drill) else { return }
@@ -87,7 +105,9 @@ struct WeekPlannerView: View {
 
     /// Fills the selected day with an even mix of the chosen focus areas.
     private func autoFill(count requestedCount: Int) {
-        let pools = topics.filter { focusAreas.contains($0.name) }.map { $0.drills.map(\.name).shuffled() }
+        let pools = topics
+            .filter { focusAreas.contains($0.name) && ($0.name != "Plus Training" || plusStore.isUnlocked) }
+            .map { $0.drills.map(\.name).shuffled() }
         guard !pools.isEmpty else { return }
         let drillCount = min(max(requestedCount, 1), WeekPlan.maxDrillsPerDay)
         var list: [String] = []
@@ -106,7 +126,12 @@ struct WeekPlannerView: View {
     var body: some View {
         List {
             Section("What do you want to improve?") {
-                FlowChips(items: topics.map(\.name), selected: focusAreas, onTap: toggleFocus)
+                FlowChips(
+                    items: topics.map(\.name),
+                    selected: focusAreas,
+                    locked: plusStore.isUnlocked ? [] : ["Plus Training"],
+                    onTap: toggleFocus
+                )
             }
 
             Section("Day") {
@@ -164,7 +189,7 @@ struct WeekPlannerView: View {
                             HStack {
                                 Text(drill.name)
                                 Spacer()
-                                Image(systemName: "plus.circle.fill")
+                                Image(systemName: isLockedPlusDrill(drill.name) ? "lock.fill" : "plus.circle.fill")
                             }
                         }
                     }
@@ -175,6 +200,9 @@ struct WeekPlannerView: View {
         }
         .navigationTitle("Build My Week")
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showingPlus) {
+            FutbolElitePlusView()
+        }
         .alert("How many drills?", isPresented: $showingAutoFillPrompt) {
             TextField("Number of drills", text: $autoFillCount)
                 .keyboardType(.numberPad)
@@ -192,6 +220,7 @@ struct WeekPlannerView: View {
 private struct FlowChips: View {
     let items: [String]
     let selected: Set<String>
+    let locked: Set<String>
     let onTap: (String) -> Void
 
     var body: some View {
@@ -201,15 +230,19 @@ private struct FlowChips: View {
                 Button {
                     onTap(item)
                 } label: {
-                    Text(item)
-                        .font(.caption)
-                        .fontWeight(.bold)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
-                        .background(isOn ? Color.soccerAccent : Color.soccerSurfaceStrong, in: Capsule())
-                        .foregroundStyle(isOn ? Color.black : Color.soccerText)
+                    HStack(spacing: 4) {
+                        Text(item)
+                        if locked.contains(item) {
+                            Image(systemName: "lock.fill")
+                        }
+                    }
+                    .font(.caption.bold())
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                    .background(isOn ? Color.soccerAccent : Color.soccerSurfaceStrong, in: Capsule())
+                    .foregroundStyle(isOn ? Color.black : Color.soccerText)
                 }
                 .buttonStyle(.plain)
             }

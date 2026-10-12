@@ -120,6 +120,10 @@ final class DrillTimerLiveActivity: NSObject {
     }
 
     private func playChime() {
+        let session = AVAudioSession.sharedInstance()
+        try? session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+        try? session.setActive(true)
+
         guard
             let url = Bundle.main.url(forResource: "gentle_chime", withExtension: "caf"),
             let player = try? AVAudioPlayer(contentsOf: url)
@@ -128,6 +132,8 @@ final class DrillTimerLiveActivity: NSObject {
             return
         }
         chimePlayer = player
+        player.volume = 1
+        player.prepareToPlay()
         player.play()
 
         // Keep the audio session alive until the chime has finished.

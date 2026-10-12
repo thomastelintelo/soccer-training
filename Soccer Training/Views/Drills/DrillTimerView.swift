@@ -1053,7 +1053,7 @@ struct DrillTimerView: View {
                 HStack(spacing: 10) {
                     sessionFact(
                         title: "DURATION",
-                        value: Self.formattedDuration(drillDuration),
+                        value: "\(drillMinutes) min",
                         icon: "clock.fill"
                     )
                     sessionFact(
@@ -1198,7 +1198,7 @@ struct DrillTimerView: View {
                 } else {
                     Text(
                         shootingCooldown > 0
-                            ? "Done available in \(shootingCooldown) seconds"
+                            ? "Done available in \(Int((Double(shootingCooldown) / 60).rounded(.up))) min"
                             : "You can finish the drill now"
                     )
                     .font(.headline)
@@ -1235,6 +1235,11 @@ struct DrillTimerView: View {
 
                 Text(formattedTime)
                     .font(.system(size: 64, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+
+                Text("Minutes : Seconds")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
 
                 Button(timerActive ? "Stop" : "Start") {
                     if timerActive {

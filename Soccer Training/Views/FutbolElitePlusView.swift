@@ -10,9 +10,8 @@ struct FutbolElitePlusView: View {
         PlusFeature(icon: "list.bullet.clipboard.fill", title: "Premium Guided Sessions", detail: "Complete Plus sessions with warm-ups, selected drills, timers, and cool-downs."),
         PlusFeature(icon: "bolt.fill", title: "Match-Speed Training", detail: "Higher-intensity combinations that connect multiple skills in one workout."),
         PlusFeature(icon: "target", title: "Exclusive Challenges", detail: "Accuracy, weak-foot, juggling, pressure, and complete-player challenges."),
-        PlusFeature(icon: "person.3.fill", title: "Coach Plus Included", detail: "Advanced team plans, coaching resources, and premium practice ideas."),
         PlusFeature(icon: "arrow.down.circle.fill", title: "Future Plus Content", detail: "New Plus drills and sessions are included while your plan is active."),
-        PlusFeature(icon: "calendar", title: "One Full Year", detail: "Player Plus and Coach Plus stay unlocked for the entire subscription year."),
+        PlusFeature(icon: "calendar", title: "One Full Year", detail: "Plus content stays unlocked for the entire subscription year."),
     ]
 
     var body: some View {
@@ -119,7 +118,7 @@ private struct PlusHeroView: View {
             Text("TRAIN LIKE AN ELITE PLAYER")
                 .font(.title2.bold())
                 .multilineTextAlignment(.center)
-            Text("Unlock every Player Plus and Coach Plus feature for \(price) per year.")
+            Text("Unlock every Plus feature for \(price) per year.")
                 .font(.headline)
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.white.opacity(0.85))

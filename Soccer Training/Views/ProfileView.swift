@@ -6,6 +6,7 @@ import SwiftUI
 import UIKit
 
 struct ProfileView: View {
+    @Environment(PlusPurchaseStore.self) private var plusStore
     let username: String
     let position: String
     let bestSkill: String
@@ -32,6 +33,7 @@ struct ProfileView: View {
     @State private var isShowingSignOutConfirmation = false
     @State private var isShowingCamera = false
     @State private var isShowingCameraUnavailable = false
+    @State private var isShowingPlus = false
     @State private var justUnlocked: Set<String> = []
     @ObservedObject private var screenRecorder = ScreenRecordingManager.shared
     #if DEBUG
@@ -438,6 +440,20 @@ struct ProfileView: View {
                         .clipShape(.rect(cornerRadius: 14))
                 }
 
+                Button {
+                    isShowingPlus = true
+                } label: {
+                    Label(
+                        plusStore.isUnlocked ? "Pro Unlocked" : "Upgrade to Pro",
+                        systemImage: plusStore.isUnlocked ? "checkmark.seal.fill" : "crown.fill"
+                    )
+                    .font(.title2.bold())
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color.soccerGold, in: RoundedRectangle(cornerRadius: 14))
+                    .foregroundStyle(.black)
+                }
+
                 Button(role: .destructive) {
                     isShowingSignOutConfirmation = true
                 } label: {
@@ -462,6 +478,9 @@ struct ProfileView: View {
                 profilePhoto = data.base64EncodedString()
             }
             .ignoresSafeArea()
+        }
+        .sheet(isPresented: $isShowingPlus) {
+            FutbolElitePlusView()
         }
         .alert("Camera Unavailable", isPresented: $isShowingCameraUnavailable) {
             Button("OK", role: .cancel) { }

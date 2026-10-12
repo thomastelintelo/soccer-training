@@ -36,6 +36,10 @@ struct AssignedDrillTimerView: View {
                     .monospacedDigit()
                     .foregroundStyle(isFinished ? Color.green : Color.soccerAccent)
 
+                Text("Minutes : Seconds")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+
                 if isFinished {
                     Label("Great work! Drill complete.", systemImage: "checkmark.seal.fill")
                         .font(.headline).foregroundStyle(.green)

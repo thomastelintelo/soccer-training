@@ -86,67 +86,53 @@ struct LaunchContainerView: View {
     @AppStorage("accountRole") private var accountRole = ""
     @State private var hasStarted = false
     @State private var hasSeenBenefits = false
-    @State private var hasChosenRoleForThisLaunch = false
 
     var body: some View {
         ZStack {
-            // Built only after the splash is dismissed, so the very first frame
-            // doesn't have to construct the whole signed-in tab hierarchy first.
-            if hasStarted {
-                if !hasChosenRoleForThisLaunch {
-                    RoleSelectionView { role in
-                        let selectedRole = role.rawValue
-                        if !accountRole.isEmpty && accountRole != selectedRole {
-                            hasCompletedOnboarding = false
-                            hasSeenBenefits = false
-                        }
-                        accountRole = selectedRole
-                        withAnimation(.easeOut(duration: 0.25)) {
-                            hasChosenRoleForThisLaunch = true
-                        }
-                    }
-                    .transition(.opacity)
-                } else if hasCompletedOnboarding {
-                    if accountRole == AppRole.coach.rawValue {
-                        CoachContentView()
-                    } else {
-                        ContentView()
-                    }
-                } else if hasSeenBenefits {
-                    if accountRole == AppRole.player.rawValue {
-                        PlayerSignInView(
-                            isSignedIn: $hasCompletedOnboarding,
-                            onChooseDifferentRole: {
-                                accountRole = ""
-                                hasChosenRoleForThisLaunch = false
-                            }
-                        )
-                    } else {
-                        CoachSignInView(
-                            isSignedIn: $hasCompletedOnboarding,
-                            onChooseDifferentRole: {
-                                accountRole = ""
-                                hasChosenRoleForThisLaunch = false
-                            }
-                        )
-                    }
+            if hasCompletedOnboarding {
+                if accountRole == AppRole.coach.rawValue {
+                    CoachContentView()
                 } else {
-                    AppBenefitsView {
+                    ContentView()
+                }
+            } else {
+                // Build onboarding only after the welcome screen is dismissed.
+                if hasStarted {
+                    if accountRole.isEmpty {
+                    RoleSelectionView { role in
+                        accountRole = role.rawValue
+                    }
+                    .transition(.opacity)
+                    } else if hasSeenBenefits {
+                        if accountRole == AppRole.player.rawValue {
+                            PlayerSignInView(
+                                isSignedIn: $hasCompletedOnboarding,
+                                onChooseDifferentRole: { accountRole = "" }
+                            )
+                        } else {
+                            CoachSignInView(
+                                isSignedIn: $hasCompletedOnboarding,
+                                onChooseDifferentRole: { accountRole = "" }
+                            )
+                        }
+                    } else {
+                        AppBenefitsView {
+                            withAnimation(.easeOut(duration: 0.35)) {
+                                hasSeenBenefits = true
+                            }
+                        }
+                        .transition(.opacity)
+                    }
+                }
+
+                if !hasStarted {
+                    WelcomeStartView {
                         withAnimation(.easeOut(duration: 0.35)) {
-                            hasSeenBenefits = true
+                            hasStarted = true
                         }
                     }
                     .transition(.opacity)
                 }
-            }
-
-            if !hasStarted {
-                WelcomeStartView {
-                    withAnimation(.easeOut(duration: 0.35)) {
-                        hasStarted = true
-                    }
-                }
-                .transition(.opacity)
             }
         }
     }
